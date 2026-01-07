@@ -16,7 +16,7 @@ import com.kos.service.InventoryService;
 public class InventoryController {
 	
 	@Autowired
-	InventoryService itemService;
+	InventoryService inventoryService;
 	
 	@GetMapping("/health")
 	public ResponseEntity<String> getHealth() {
@@ -26,7 +26,7 @@ public class InventoryController {
 	@PostMapping("/addItem")
 	public ResponseEntity<Item> addItem(@RequestBody Item item){
 		
-		return new ResponseEntity<Item>(itemService.addItem(item), HttpStatus.OK);
+		return new ResponseEntity<Item>(inventoryService.addItem(item), HttpStatus.OK);
 		
 	}
 

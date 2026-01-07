@@ -14,11 +14,11 @@ public class InventoryService {
 	Logger logger = LoggerFactory.getLogger(InventoryService.class);
 	
 	@Autowired
-	InventoryRepository InventoryRepository;
+	InventoryRepository inventoryRepository;
 	
 	public Item addItem(Item item) {
 		try {
-			return InventoryRepository.save(item);
+			return inventoryRepository.save(item);
 		}catch(Exception e){
 			logger.debug("Not able to  save item. Some Exception occurred");
 			return new Item();
