@@ -9,13 +9,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.kos.dto.Item;
-import com.kos.service.ItemService;
+import com.kos.service.InventoryService;
+
 
 @RestController
 public class InventoryController {
 	
 	@Autowired
-	ItemService itemService;
+	InventoryService inventoryService;
 	
 	@GetMapping("/health")
 	public ResponseEntity<String> getHealth() {
@@ -25,7 +26,7 @@ public class InventoryController {
 	@PostMapping("/addItem")
 	public ResponseEntity<Item> addItem(@RequestBody Item item){
 		
-		return new ResponseEntity<Item>(itemService.addItem(item), HttpStatus.OK);
+		return new ResponseEntity<Item>(inventoryService.addItem(item), HttpStatus.OK);
 		
 	}
 

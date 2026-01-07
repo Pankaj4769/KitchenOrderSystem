@@ -6,19 +6,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.kos.dto.Item;
-import com.kos.repository.ItemRepository;
+import com.kos.repository.InventoryRepository;
 
 @Service
-public class ItemService {
+public class InventoryService {
 	
-	Logger logger = LoggerFactory.getLogger(ItemService.class);
+	Logger logger = LoggerFactory.getLogger(InventoryService.class);
 	
 	@Autowired
-	ItemRepository itemRepository;
+	InventoryRepository inventoryRepository;
 	
 	public Item addItem(Item item) {
 		try {
-			return itemRepository.save(item);
+			return inventoryRepository.save(item);
 		}catch(Exception e){
 			logger.debug("Not able to  save item. Some Exception occurred");
 			return new Item();

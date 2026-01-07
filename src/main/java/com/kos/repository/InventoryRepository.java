@@ -7,6 +7,6 @@ import com.kos.dto.Item;
 
 
 @Repository
-public interface ItemRepository extends JpaRepository<Item, Integer>{
+public interface InventoryRepository extends JpaRepository<Item, Integer>{
 
 }
