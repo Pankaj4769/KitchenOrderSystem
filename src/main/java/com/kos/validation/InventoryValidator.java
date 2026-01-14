@@ -1,12 +1,13 @@
 package com.kos.validation;
 
 import com.kos.dto.Item;
+import com.kos.exception.InvalidInputException;
 
 
 public class InventoryValidator {
 
     public static void validateQuantity(Item item) {
-        if (item.getItemQuantity() == null || item.getItemQuantity() == 0) {
+        if (item.getItemQuantity() == null || item.getItemQuantity() <= 0) {
             throw new InvalidInputException("Item quantity cannot be zero or empty");
         }
         if (item.getItemName() == null || item.getItemName().equals("")) {
