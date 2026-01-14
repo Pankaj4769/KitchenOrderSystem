@@ -1,9 +1,16 @@
 package com.kos.dto;
 
+import java.util.List;
+
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Transient;
 
 @Entity
 public class Item {
@@ -16,6 +23,12 @@ public class Item {
 	private Integer itemPrice;
 	private Integer itemQuantity;
 	private String itemType;
+	private boolean item_status;
+	@ElementCollection
+	@CollectionTable(name = "item_categories", joinColumns = @JoinColumn(name = "item_id"))
+	@Column(name = "category")
+	@Transient
+	private List<String> categories;
 	
 	
 	public Integer getItemId() {
@@ -54,6 +67,19 @@ public class Item {
 	public void setItemType(String itemType) {
 		this.itemType = itemType;
 	}
+	public List<String> getCategories() {
+		return categories;
+	}
+	public void setCategories(List<String> categories) {
+		this.categories = categories;
+	}
+	public boolean getItem_status() {
+		return item_status;
+	}
+	public void setItem_status(boolean item_status) {
+		this.item_status = item_status;
+	}
+	
 	
 
 }
