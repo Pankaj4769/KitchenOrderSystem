@@ -3,6 +3,8 @@ package com.kos.validation;
 import java.util.Arrays;
 import java.util.List;
 
+import com.kos.exception.InvalidInputException;
+
 public class OrderStatusValidator {
 
     private static final List<String> VALID_STATUSES =

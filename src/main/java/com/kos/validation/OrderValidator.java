@@ -1,6 +1,7 @@
 package com.kos.validation;
 
 import com.kos.dto.Order;
+import com.kos.exception.InvalidInputException;
 
 public class OrderValidator {
 
