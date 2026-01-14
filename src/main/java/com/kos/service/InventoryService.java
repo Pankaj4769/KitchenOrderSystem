@@ -28,7 +28,7 @@ public class InventoryService {
 	ItemCategoryRepository itemCategoryRepository;
 	
 	public Item addItem(Item item) {
-	    InventoryValidator.validateItemId(item);
+	  
 	    InventoryValidator.validateQuantity(item);
 		try {
 			item.setItem_status(true);
