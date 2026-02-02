@@ -2,6 +2,8 @@ package com.kos.dto;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -17,13 +19,27 @@ public class Item {
 	
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@JsonProperty("id")
 	private Integer itemId;
+	@JsonProperty("name")
 	private String itemName;
+	@JsonProperty("image")
 	private String itemImgName;
+	@JsonProperty("price")
 	private Integer itemPrice;
+	@JsonProperty("qty")
 	private Integer itemQuantity;
+	@JsonProperty("group")
 	private String itemType;
+	@JsonProperty("enabled")
 	private boolean item_status;
+	@JsonProperty("from")
+	private String fromTime;
+	@JsonProperty("to")
+	private String toTime;
+	
+	
+	@JsonProperty("category")
 	@ElementCollection
 	@CollectionTable(name = "item_categories", joinColumns = @JoinColumn(name = "item_id"))
 	@Column(name = "category")
@@ -79,6 +95,19 @@ public class Item {
 	public void setItem_status(boolean item_status) {
 		this.item_status = item_status;
 	}
+	public String getFromTime() {
+		return fromTime;
+	}
+	public void setFromTime(String fromTime) {
+		this.fromTime = fromTime;
+	}
+	public String getToTime() {
+		return toTime;
+	}
+	public void setToTime(String toTime) {
+		this.toTime = toTime;
+	}
+	
 	
 	
 

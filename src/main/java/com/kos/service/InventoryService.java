@@ -32,7 +32,7 @@ public class InventoryService {
 	    InventoryValidator.validateQuantity(item);
 		try {
 			item.setItem_status(true);
-			Item itm = inventoryRepository.save(item);
+			Item itm = inventoryRepository.saveAndFlush(item);
 			if(itm != null && itm.getItemId()!= null) {
 				for(String category: item.getCategories()) {
 					ItemCategory itemCategory = new ItemCategory();
@@ -56,9 +56,14 @@ public class InventoryService {
 	    		.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, 
 	    				"Item with ID " + item.getItemId() + " not found"));
 	    
+	    if(existingItem.getItemQuantity()==0) {
 		 existingItem.setItemQuantity(
 				    existingItem.getItemQuantity() + item.getItemQuantity()
 				);
+	    }else {
+	    	 existingItem.setItemQuantity(
+					    item.getItemQuantity());
+	    }
 		 return inventoryRepository.save(existingItem);
 	}
 	
@@ -88,6 +93,22 @@ public class InventoryService {
 			
 		}else {
 			return new Item();
+		}
+	}
+	
+	public String deleteItemById(String id) {
+		Item existing = getItemById(Integer.parseInt(id));
+		if(existing != null) {
+			Optional<ItemCategory> category = itemCategoryRepository.findById(Integer.parseInt(id));
+			if(category.isPresent()) {
+				itemCategoryRepository.delete(category.get());
+				inventoryRepository.delete(existing);
+				return "Success";
+			}else {
+				return "Failure";
+			}
+		}else {
+			return "Failure";
 		}
 	}
 
