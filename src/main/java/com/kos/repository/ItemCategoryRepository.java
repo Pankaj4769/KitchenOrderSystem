@@ -16,6 +16,9 @@ public interface ItemCategoryRepository extends JpaRepository<ItemCategory, Inte
 	
 	@Query("SELECT categoryType FROM ItemCategory WHERE itemId = :itemId")
     List<String> findCategoryByItemId(@Param("itemId") Integer itemId);
+	
+	@Query("DELETE from ItemCategory where itemId = :itemId")
+    void deleteCategoryByItemId(@Param("itemId") Integer itemId);
 
 }
 

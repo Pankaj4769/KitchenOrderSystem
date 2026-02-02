@@ -3,6 +3,7 @@ package com.kos.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -111,5 +112,26 @@ public class InventoryService {
 			return "Failure";
 		}
 	}
+	public Item updateItem(Item item) {
+		Item existing = getItemById(item.getItemId());
+      
+		if (existing !=null) {
+		    existing.setItemName(item.getItemName());
+		    existing.setItemPrice(item.getItemPrice());
+		    existing.setItem_status(item.getItem_status());
+		    existing.setItemQuantity(item.getItemQuantity());
+		  itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
+		    
+		    for (String category:item.getCategories()) {
+		    	ItemCategory itemCategory = new ItemCategory();
+		    	itemCategory.setItemId(item.getItemId());
+		    	itemCategory.setCategoryType(category);
+		    	itemCategoryRepository.save(itemCategory);
+		    }
+		    
+		    return inventoryRepository.save(existing);
+		}
+    return null;
+}
 
 }

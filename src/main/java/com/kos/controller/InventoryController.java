@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -42,6 +43,12 @@ public class InventoryController {
 		return new ResponseEntity<Item>(inventoryService.restockItem(item), HttpStatus.OK);
 		
 	}
+	
+	// ✅ Update Item (name, price, category, status)
+    @PutMapping("/updateItem")
+    public ResponseEntity<Item> updateItem(@RequestBody Item item) {
+        return new ResponseEntity<Item>(inventoryService.updateItem(item), HttpStatus.OK);
+    }
 	
 	
 
