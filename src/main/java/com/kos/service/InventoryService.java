@@ -3,6 +3,7 @@ package com.kos.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.kos.dto.Item;
 import com.kos.dto.ItemCategory;
+import com.kos.dto.MessageResponse;
 import com.kos.repository.InventoryRepository;
 import com.kos.validation.InventoryValidator;
 import com.kos.repository.ItemCategoryRepository;
@@ -96,20 +98,38 @@ public class InventoryService {
 		}
 	}
 	
-	public String deleteItemById(String id) {
+	public MessageResponse deleteItemById(String id) {
 		Item existing = getItemById(Integer.parseInt(id));
 		if(existing != null) {
-			Optional<ItemCategory> category = itemCategoryRepository.findById(Integer.parseInt(id));
-			if(category.isPresent()) {
-				itemCategoryRepository.delete(category.get());
-				inventoryRepository.delete(existing);
-				return "Success";
+			itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
+			inventoryRepository.delete(existing);
+			return new MessageResponse("Success", true);
 			}else {
-				return "Failure";
+				return new MessageResponse("Failure", false);
 			}
-		}else {
-			return "Failure";
-		}
 	}
+	public Item updateItem(Item item) {
+		Item existing = getItemById(item.getItemId());
+      
+		if (existing !=null) {
+		    existing.setItemName(item.getItemName());
+		    existing.setItemPrice(item.getItemPrice());
+		    existing.setItem_status(item.getItem_status());
+		    existing.setItemQuantity(item.getItemQuantity());
+		    existing.setFromTime(item.getFromTime());
+		    existing.setToTime(item.getToTime());
+		    itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
+		    
+		    for (String category:item.getCategories()) {
+		    	ItemCategory itemCategory = new ItemCategory();
+		    	itemCategory.setItemId(item.getItemId());
+		    	itemCategory.setCategoryType(category);
+		    	itemCategoryRepository.save(itemCategory);
+		    }
+		    
+		    return inventoryRepository.save(existing);
+		}
+    return null;
+}
 
 }

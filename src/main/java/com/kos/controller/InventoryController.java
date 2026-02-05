@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.kos.dto.Item;
+import com.kos.dto.MessageResponse;
 import com.kos.service.InventoryService;
 
 
@@ -43,6 +45,12 @@ public class InventoryController {
 		
 	}
 	
+	// ✅ Update Item (name, price, category, status)
+    @PatchMapping("/updateItem")
+    public ResponseEntity<Item> updateItem(@RequestBody Item item) {
+        return new ResponseEntity<Item>(inventoryService.updateItem(item), HttpStatus.OK);
+    }
+	
 	
 
 	
@@ -52,8 +60,8 @@ public class InventoryController {
 	}
 	
 	@DeleteMapping("/deleteItemById/{id}")
-	public ResponseEntity<String> deleteItem(@PathVariable String itemId){
-		return new ResponseEntity<String>(inventoryService.deleteItemById(itemId), HttpStatus.OK);
+	public ResponseEntity<MessageResponse> deleteItemById(@PathVariable String id){
+		return new ResponseEntity<MessageResponse>(inventoryService.deleteItemById(id), HttpStatus.OK);
 	}
 	
 	@PatchMapping("/updateItemStatus/{itemId}/{status}")
