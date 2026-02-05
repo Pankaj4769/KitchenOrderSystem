@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.kos.dto.Item;
 import com.kos.dto.ItemCategory;
+import com.kos.dto.MessageResponse;
 import com.kos.repository.InventoryRepository;
 import com.kos.validation.InventoryValidator;
 import com.kos.repository.ItemCategoryRepository;
@@ -97,20 +98,15 @@ public class InventoryService {
 		}
 	}
 	
-	public String deleteItemById(String id) {
+	public MessageResponse deleteItemById(String id) {
 		Item existing = getItemById(Integer.parseInt(id));
 		if(existing != null) {
-			Optional<ItemCategory> category = itemCategoryRepository.findById(Integer.parseInt(id));
-			if(category.isPresent()) {
-				itemCategoryRepository.delete(category.get());
-				inventoryRepository.delete(existing);
-				return "Success";
+			itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
+			inventoryRepository.delete(existing);
+			return new MessageResponse("Success", true);
 			}else {
-				return "Failure";
+				return new MessageResponse("Failure", false);
 			}
-		}else {
-			return "Failure";
-		}
 	}
 	public Item updateItem(Item item) {
 		Item existing = getItemById(item.getItemId());
@@ -120,7 +116,9 @@ public class InventoryService {
 		    existing.setItemPrice(item.getItemPrice());
 		    existing.setItem_status(item.getItem_status());
 		    existing.setItemQuantity(item.getItemQuantity());
-		  itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
+		    existing.setFromTime(item.getFromTime());
+		    existing.setToTime(item.getToTime());
+		    itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
 		    
 		    for (String category:item.getCategories()) {
 		    	ItemCategory itemCategory = new ItemCategory();
