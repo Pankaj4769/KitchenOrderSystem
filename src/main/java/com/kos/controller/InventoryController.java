@@ -21,7 +21,6 @@ import com.kos.service.InventoryService;
 
 
 @RestController
-@CrossOrigin(origins = "http://localhost:4200")
 public class InventoryController {
 	
 	@Autowired

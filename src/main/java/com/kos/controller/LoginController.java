@@ -3,8 +3,6 @@ package com.kos.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import com.kos.dto.User;
-
 
 @RestController
 public class LoginController {
