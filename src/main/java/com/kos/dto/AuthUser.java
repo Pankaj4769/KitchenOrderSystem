@@ -1,5 +1,6 @@
 package com.kos.dto;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -10,9 +11,11 @@ import jakarta.annotation.Nullable; // optional
 public class AuthUser {
 
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Id
     private Integer staffId;
     private String name;
-    @Id
+    
+    @Column(nullable = false, unique = true)
     private String username;
 
     @Nullable

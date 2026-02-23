@@ -1,8 +1,11 @@
 package com.kos.dto;
 
 public enum UserRole {
-    ADMIN,
+	OWNER,
     CHEF,
     WAITER,
-    MANAGER
+    MANAGER,
+    BILLING_ASSISTANT,
+    CASHIER
+   
 }

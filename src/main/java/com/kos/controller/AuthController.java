@@ -15,6 +15,8 @@ import com.kos.authentication.JwtUtil;
 import com.kos.dto.AuthResponse;
 import com.kos.dto.AuthUser;
 import com.kos.dto.LoginRequest;
+import com.kos.dto.SignUpResponse;
+import com.kos.dto.SignupForm;
 import com.kos.service.UserService;
 
 
@@ -29,14 +31,15 @@ public class AuthController {
     UserService userService;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
 
         // Validate user manually or via AuthenticationManager
     	    	
         if (request != null) {
         	
-        	AuthUser user = userService.getUserRoles(request.getUsername());
-        	if(user != null && request.getPassword().equals("password")) {
+        	SignupForm user = userService.getUser(request.getUsername());
+        	AuthUser authUser = userService.getUserRoles(request.getUsername());
+        	if(user.getUsername() != null && request.getPassword().equals(user.getPassword()) && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
 	            String token = jwtUtil.generateToken(request.getUsername());	
 	            return ResponseEntity.ok(new AuthResponse(token));
         	}
@@ -46,7 +49,7 @@ public class AuthController {
     }
     
     @GetMapping("/getUser/{username}")
-    public ResponseEntity<AuthUser> login(@PathVariable  String username) {
+    public ResponseEntity<AuthUser> getUser(@PathVariable  String username) {
     	    	
         if (username != null) {
         	
@@ -58,6 +61,12 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
+    
+    @PostMapping("/signUp")
+    public ResponseEntity<SignUpResponse> signUp(@RequestBody SignupForm form) {	
+    	return ResponseEntity.ok(userService.saveUser(form));	
+    }
+    
     
     
 }
