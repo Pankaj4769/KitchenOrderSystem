@@ -40,7 +40,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of("http://localhost:4200")); // your Angular app
+        configuration.setAllowedOrigins(List.of("http://localhost:4200","http://173.255.113.108:4200")); // your Angular app
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*")); // Accept any header
         configuration.setAllowCredentials(true); // Required if sending cookies or auth headers
