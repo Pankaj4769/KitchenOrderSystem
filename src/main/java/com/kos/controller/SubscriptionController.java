@@ -14,15 +14,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/subscription")
-@RequiredArgsConstructor
 public class SubscriptionController {
 
-	private final SubscriptionService subscriptionService;
-
 	@Autowired
-	public SubscriptionController(SubscriptionService subscriptionService) {
-	    this.subscriptionService = subscriptionService;
-	}
+	SubscriptionService subscriptionService;
 
     @PostMapping("/assign")
     public ResponseEntity<SubscriptionResponseDTO> assignPlan(
