@@ -23,18 +23,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class SubscriptionServiceImpl implements SubscriptionService {
 
-	private final SubscriptionRepository subscriptionRepository;
-	private final SubscriptionPlanRepository planRepository;
-
 	@Autowired
-	public SubscriptionServiceImpl(SubscriptionRepository subscriptionRepository,
-	                                SubscriptionPlanRepository planRepository) {
-	    this.subscriptionRepository = subscriptionRepository;
-	    this.planRepository = planRepository;
-	}
+	SubscriptionRepository subscriptionRepository;
+	@Autowired
+	SubscriptionPlanRepository planRepository;
 
     @Override
     public SubscriptionResponseDTO assignPlan(SubscriptionRequestDTO request) {
