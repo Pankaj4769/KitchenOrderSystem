@@ -28,7 +28,7 @@ public class InventoryController {
 	
 	@GetMapping("/health")
 	public ResponseEntity<String> getHealth() {
-		return new ResponseEntity<String>("Ok health",HttpStatus.OK);
+		return new ResponseEntity<String>("Ok health 2",HttpStatus.OK);
 	}
 	
 	@PostMapping("/addItem")
