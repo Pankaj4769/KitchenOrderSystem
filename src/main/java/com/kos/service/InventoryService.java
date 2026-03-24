@@ -1,5 +1,6 @@
 package com.kos.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,13 +70,16 @@ public class InventoryService {
 		 return inventoryRepository.save(existingItem);
 	}
 	
-	public List<Item> getAllItems(){
-		List<Item>  itemList= inventoryRepository.findAll();
-		for(Item item: itemList) {
+	public List<Item> getAllItems(String restId){
+		Optional<List<Item>>  itemList= inventoryRepository.findItemListByRestaurantId(restId);
+		if(itemList.isEmpty()) {
+			return new ArrayList<Item>();
+		}
+		for(Item item: itemList.get()) {
 			List<String> cList = itemCategoryRepository.findCategoryByItemId(item.getItemId());
 			item.setCategories(cList);
 		}
-		return itemList;
+		return itemList.get();
 	}
 	
 	public Item getItemById(Integer itemId){

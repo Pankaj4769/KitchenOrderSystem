@@ -1,5 +1,7 @@
 package com.kos.controller;
 
+import com.kos.dto.CompleteSetup;
+import com.kos.dto.MessageResponse;
 import com.kos.dto.SubscriptionRequestDTO;
 import com.kos.dto.SubscriptionResponseDTO;
 import com.kos.model.SubscriptionPlan.PlanType;
@@ -48,5 +50,12 @@ public class SubscriptionController {
             @PathVariable Long restaurantId) {
         subscriptionService.cancelSubscription(restaurantId);
         return ResponseEntity.ok("Subscription cancelled successfully");
+    }
+    
+    @PatchMapping("/completeSetup")
+    public ResponseEntity<MessageResponse> updateOnboardingStatus(@RequestBody CompleteSetup setup){
+    	
+    	return ResponseEntity.ok(subscriptionService.updateOnboardingStatus(setup));
+    	
     }
 }

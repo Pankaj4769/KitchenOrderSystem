@@ -2,6 +2,7 @@ package com.kos.dto;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Transient;
 
 @Entity
 public class SignupForm {
@@ -10,10 +11,11 @@ public class SignupForm {
     private String fullName;
     private String email;
     private String mobile;
-    
     @Id
     private String username;
+    @Transient
     private String password;
+    @Transient
     private String confirmPassword;
     private boolean acceptTerms;
 

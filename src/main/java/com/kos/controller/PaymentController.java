@@ -1,0 +1,25 @@
+package com.kos.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.kos.dto.PaymentRequest;
+import com.kos.dto.PaymentResponse;
+import com.kos.service.PaymentService;
+
+@RestController
+public class PaymentController {
+	
+	@Autowired
+	PaymentService paymentService;
+	
+	@PostMapping("/doPayment")
+	public ResponseEntity<PaymentResponse> doPayment(@RequestBody PaymentRequest paymentReq){
+		
+		return ResponseEntity.ok(paymentService.doPayment(paymentReq));
+	}	
+
+}

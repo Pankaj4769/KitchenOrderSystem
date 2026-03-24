@@ -17,6 +17,8 @@ public class AuthUser {
     
     @Column(nullable = false, unique = true)
     private String username;
+    
+    private String password;
 
     @Nullable
     private String email;
@@ -121,6 +123,14 @@ public class AuthUser {
 
 	public void setRestaurantId(String restaurantId) {
 		this.restaurantId = restaurantId;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
 	}
     
     

@@ -37,6 +37,7 @@ public class Item {
 	private String fromTime;
 	@JsonProperty("to")
 	private String toTime;
+	private String restaurantId;
 	
 	
 	@JsonProperty("category")
@@ -106,6 +107,12 @@ public class Item {
 	}
 	public void setToTime(String toTime) {
 		this.toTime = toTime;
+	}
+	public String getRestaurantId() {
+		return restaurantId;
+	}
+	public void setRestaurantId(String restaurantId) {
+		this.restaurantId = restaurantId;
 	}
 	
 	

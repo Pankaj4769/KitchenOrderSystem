@@ -37,7 +37,7 @@ public class AuthController {
     	    	
         if (request != null) {
         	
-        	SignupForm user = userService.getUser(request.getUsername());
+        	AuthUser user = userService.getUser(request.getUsername());
         	AuthUser authUser = userService.getUserRoles(request.getUsername());
         	if(user.getUsername() != null && request.getPassword().equals(user.getPassword()) && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
 	            String token = jwtUtil.generateToken(request.getUsername());	

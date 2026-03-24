@@ -47,6 +47,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(
             Exception ex) {
+    	
+    	ex.printStackTrace();
 
         ErrorResponse error = new ErrorResponse(
                 "Internal server error",

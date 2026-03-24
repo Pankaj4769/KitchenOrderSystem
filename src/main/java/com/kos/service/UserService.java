@@ -40,13 +40,13 @@ public class UserService {
 	}
 	
 	
-	public SignupForm getUser(String username) {
-		Optional<SignupForm> user = signupRepository.findByUsername(username);
+	public AuthUser getUser(String username) {
+		Optional<AuthUser> user = userRepository.findByUsername(username);
 		if(user.isPresent()) {
 			return user.get();
 			
 		}else {
-			return new SignupForm();
+			return new AuthUser();
 		}
 	}
 	
@@ -74,6 +74,7 @@ public class UserService {
 				authUser.setRestaurantId(rest.getRestaurentId().toString());
 				authUser.setRole(UserRole.OWNER);
 				authUser.setUsername(form.getUsername());
+				authUser.setPassword(form.getPassword());
 				AuthUser u = userRepository.save(authUser);
 				if(u.getStaffId() != null) {
 					response.setMessage("success");

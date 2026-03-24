@@ -53,9 +53,9 @@ public class InventoryController {
 	
 
 	
-	@GetMapping("/getAllItems")
-	public ResponseEntity<List<Item>> getAllItems(){
-		return new ResponseEntity<List<Item>>(inventoryService.getAllItems(), HttpStatus.OK);
+	@GetMapping("/getAllItems/{restId}")
+	public ResponseEntity<List<Item>> getAllItems(@PathVariable String restId){
+		return new ResponseEntity<List<Item>>(inventoryService.getAllItems(restId), HttpStatus.OK);
 	}
 	
 	@DeleteMapping("/deleteItemById/{id}")
