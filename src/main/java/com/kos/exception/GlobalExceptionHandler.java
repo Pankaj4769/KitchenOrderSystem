@@ -51,7 +51,7 @@ public class GlobalExceptionHandler {
     	ex.printStackTrace();
 
         ErrorResponse error = new ErrorResponse(
-                "Internal server error",
+                "Internal server error" + ex.getMessage(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value()
         );
 
