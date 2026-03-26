@@ -51,6 +51,18 @@ public class UserService {
 	}
 	
 	
+	public boolean updatePassword(String username, String newPassword) {
+		Optional<AuthUser> userOpt = userRepository.findByUsername(username);
+		if (userOpt.isPresent()) {
+			AuthUser user = userOpt.get();
+			user.setPassword(newPassword);
+			userRepository.save(user);
+			return true;
+		}
+		return false;
+	}
+	
+	
 	public SignUpResponse saveUser(SignupForm form) {
 	
 		SignupForm res = signupRepository.save(form);
