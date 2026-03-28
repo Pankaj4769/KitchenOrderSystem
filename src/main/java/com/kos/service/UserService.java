@@ -51,15 +51,13 @@ public class UserService {
 	}
 	
 	
-	public boolean updatePassword(String username, String newPassword) {
-		Optional<AuthUser> userOpt = userRepository.findByUsername(username);
-		if (userOpt.isPresent()) {
-			AuthUser user = userOpt.get();
-			user.setPassword(newPassword);
+	public boolean updatePassword(AuthUser user) {
+		try {
 			userRepository.save(user);
 			return true;
+		}catch(Exception e) {
+			return false;
 		}
-		return false;
 	}
 	
 	

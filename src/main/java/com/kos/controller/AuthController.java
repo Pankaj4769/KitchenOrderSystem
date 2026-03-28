@@ -70,42 +70,15 @@ public class AuthController {
     	return ResponseEntity.ok(userService.saveUser(form));	
     }
     
-    @GetMapping("/checkUsername/{username}")
-    public ResponseEntity<MessageResponse> checkUsername(@PathVariable String username) {
-        if (username == null || username.trim().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new MessageResponse("Username is required", false));
-        }
-
-        AuthUser user = userService.getUser(username);
-        if (user != null && user.getUsername() != null) {
-            return ResponseEntity.ok(new MessageResponse("User exists", true));
-        }
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new MessageResponse("User not found", false));
-    }
-    
     @PutMapping("/forgotPassword")
     public ResponseEntity<MessageResponse> forgotPassword(@RequestBody UpdatePasswordRequest request) {
-        if (request == null || request.getUsername() == null || request.getNewPassword() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new MessageResponse("Username and new password are required", false));
+        AuthUser user = userService.getUserRoles(request.getUsername());
+        if (user == null || user.getStaffId() == null) {
+            return ResponseEntity.ok(new MessageResponse("failure", false));
         }
-
-        AuthUser user = userService.getUser(request.getUsername());
-        if (user == null || user.getUsername() == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new MessageResponse("User not found", false));
-        }
-
-        boolean updated = userService.updatePassword(request.getUsername(), request.getNewPassword());
-        if (updated) {
-            return ResponseEntity.ok(new MessageResponse("Password updated successfully", true));
-        }
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new MessageResponse("Failed to update password", false));
+        user.setPassword(request.getNewPassword());
+        boolean updated = userService.updatePassword(user);
+        return ResponseEntity.ok(new MessageResponse(updated ? "success" : "failure", updated));
     }
     
     
