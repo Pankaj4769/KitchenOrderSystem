@@ -4,6 +4,7 @@ import com.kos.dto.CompleteSetup;
 import com.kos.dto.MessageResponse;
 import com.kos.dto.SubscriptionRequestDTO;
 import com.kos.dto.SubscriptionResponseDTO;
+import com.kos.dto.UpgradePlan;
 import com.kos.model.SubscriptionPlan.PlanType;
 import com.kos.service.SubscriptionService;
 import jakarta.validation.Valid;
@@ -58,4 +59,10 @@ public class SubscriptionController {
     	return ResponseEntity.ok(subscriptionService.updateOnboardingStatus(setup));
     	
     }
+    
+    @PatchMapping("/upgradePlan")
+    public ResponseEntity<MessageResponse> upgradePlan(@RequestBody UpgradePlan plan){
+    	return ResponseEntity.ok(subscriptionService.upgradePlan(plan));
+    }
+    
 }
