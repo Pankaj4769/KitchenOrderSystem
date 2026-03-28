@@ -7,6 +7,7 @@ import com.kos.dto.OnboardingStatus;
 import com.kos.dto.StaffSetup;
 import com.kos.dto.SubscriptionRequestDTO;
 import com.kos.dto.SubscriptionResponseDTO;
+import com.kos.dto.UpgradePlan;
 import com.kos.dto.UserRole;
 import com.kos.exception.FeatureNotAllowedException;
 import com.kos.exception.SubscriptionExpiredException;
@@ -184,6 +185,26 @@ public class SubscriptionService{
     	}
 		return resp;
     	
+    }
+    
+    public MessageResponse upgradePlan(UpgradePlan plan) {
+    	
+    	MessageResponse response = new MessageResponse("failure", false);
+    	
+    	Optional<List<AuthUser>> user = userRepository.findByRestaurantId(plan.getRestaurantId());
+    	if(user.isPresent()) {
+    		for(AuthUser authUser : user.get()) {
+    			authUser.setSubscriptionPlan(plan.getPlan());
+    			try {
+    				userRepository.save(authUser);
+    			}catch(Exception e) {
+    				return response;
+    			}
+    		}
+    		response.setMessage("success");
+    		response.setStatus(true);
+    	}
+    	return response;
     }
     
     

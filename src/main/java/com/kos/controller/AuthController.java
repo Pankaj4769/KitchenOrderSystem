@@ -57,7 +57,7 @@ public class AuthController {
         if (username != null) {
         	
         	AuthUser user = userService.getUserRoles(username);
-        	if(user != null) {	
+        	if(user != null && user.getStaffId() != null) {	
 	            return ResponseEntity.ok(user);
         	}
         }
