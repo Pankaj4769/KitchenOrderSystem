@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,8 +16,10 @@ import com.kos.authentication.JwtUtil;
 import com.kos.dto.AuthResponse;
 import com.kos.dto.AuthUser;
 import com.kos.dto.LoginRequest;
+import com.kos.dto.MessageResponse;
 import com.kos.dto.SignUpResponse;
 import com.kos.dto.SignupForm;
+import com.kos.dto.UpdatePasswordRequest;
 import com.kos.service.UserService;
 
 
@@ -67,6 +70,16 @@ public class AuthController {
     	return ResponseEntity.ok(userService.saveUser(form));	
     }
     
+    @PutMapping("/forgotPassword")
+    public ResponseEntity<MessageResponse> forgotPassword(@RequestBody UpdatePasswordRequest request) {
+        AuthUser user = userService.getUserRoles(request.getUsername());
+        if (user == null || user.getStaffId() == null) {
+            return ResponseEntity.ok(new MessageResponse("failure", false));
+        }
+        user.setPassword(request.getNewPassword());
+        boolean updated = userService.updatePassword(user);
+        return ResponseEntity.ok(new MessageResponse(updated ? "success" : "failure", updated));
+    }
     
     
 }

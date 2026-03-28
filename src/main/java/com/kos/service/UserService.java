@@ -51,6 +51,16 @@ public class UserService {
 	}
 	
 	
+	public boolean updatePassword(AuthUser user) {
+		try {
+			userRepository.save(user);
+			return true;
+		}catch(Exception e) {
+			return false;
+		}
+	}
+	
+	
 	public SignUpResponse saveUser(SignupForm form) {
 	
 		SignupForm res = signupRepository.save(form);
