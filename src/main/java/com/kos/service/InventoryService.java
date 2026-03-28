@@ -120,6 +120,7 @@ public class InventoryService {
 		    existing.setItemPrice(item.getItemPrice());
 		    existing.setItem_status(item.getItem_status());
 		    existing.setItemQuantity(item.getItemQuantity());
+		    existing.setItemType(item.getItemType());
 		    existing.setFromTime(item.getFromTime());
 		    existing.setToTime(item.getToTime());
 		    itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
