@@ -51,6 +51,26 @@ public class UserService {
 	}
 	
 	
+	public Optional<AuthUser> getUserByEmail(String email) {
+		return userRepository.findByEmail(email);
+	}
+
+	public AuthUser findOrCreateByGoogle(String email, String name) {
+		Optional<AuthUser> existing = userRepository.findByEmail(email);
+		if (existing.isPresent()) {
+			return existing.get();
+		}
+		// New Google user — create as OWNER with onboarding flow
+		AuthUser newUser = new AuthUser();
+		newUser.setEmail(email);
+		newUser.setName(name);
+		newUser.setUsername(email); // use email as username for Google accounts
+		newUser.setRole(UserRole.OWNER);
+		newUser.setFirstTime(true);
+		newUser.setOnboardingStatus(OnboardingStatus.NEW);
+		return userRepository.save(newUser);
+	}
+
 	public boolean updatePassword(AuthUser user) {
 		try {
 			userRepository.save(user);

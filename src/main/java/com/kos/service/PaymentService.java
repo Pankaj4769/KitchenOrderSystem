@@ -27,10 +27,24 @@ public class PaymentService {
 		PaymentResponse paymentResponse = new PaymentResponse();
 		
 		Optional<AuthUser> dbUser = userRepository.findByMobile(paymentReq.getPhone());
+		System.out.println("[doPayment] phone=" + paymentReq.getPhone() + " email=" + paymentReq.getEmail() + " plan=" + paymentReq.getPlan() + " restaurant=" + paymentReq.getRestaurantName());
+		System.out.println("[doPayment] userFoundByMobile=" + dbUser.isPresent());
+		if (!dbUser.isPresent() && paymentReq.getEmail() != null) {
+			dbUser = userRepository.findByEmail(paymentReq.getEmail());
+			System.out.println("[doPayment] userFoundByEmail=" + dbUser.isPresent());
+		}
 		Optional<Restaurent> rest = restaurentRepository.findByRestaurentName(paymentReq.getRestaurantName());
+		System.out.println("[doPayment] restaurantFound=" + rest.isPresent());
+		if (!rest.isPresent() && paymentReq.getRestaurantName() != null) {
+			Restaurent newRest = new Restaurent();
+			newRest.setRestaurentName(paymentReq.getRestaurantName());
+			rest = Optional.of(restaurentRepository.save(newRest));
+			System.out.println("[doPayment] restaurantCreated id=" + rest.get().getRestaurentId());
+		}
 		if(dbUser.isPresent() && rest.isPresent()) {
 			AuthUser user = dbUser.get();
 			user.setEmail(paymentReq.getEmail());
+			user.setMobile(paymentReq.getPhone());
 			user.setFirstTime(false);
 			user.setName(paymentReq.getName());
 			user.setSubscriptionPlan(SubscriptionPlan.valueOf(paymentReq.getPlan()));

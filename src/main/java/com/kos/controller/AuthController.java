@@ -1,5 +1,8 @@
 package com.kos.controller;
 
+import java.util.Map;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -65,11 +68,40 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
     
+    @GetMapping("/getUserByEmail/{email}")
+    public ResponseEntity<AuthUser> getUserByEmail(@PathVariable String email) {
+        Optional<AuthUser> user = userService.getUserByEmail(email);
+        return user.map(ResponseEntity::ok)
+                   .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
     @PostMapping("/signUp")
     public ResponseEntity<SignUpResponse> signUp(@RequestBody SignupForm form) {	
     	return ResponseEntity.ok(userService.saveUser(form));	
     }
     
+    @PostMapping("/google")
+    public ResponseEntity<AuthUser> googleLogin(@RequestBody Map<String, String> body) {
+        try {
+            String email = body.get("email");
+            String name  = body.get("name");
+
+            if (email == null || email.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+
+            AuthUser user  = userService.findOrCreateByGoogle(email, name);
+            String   token = jwtUtil.generateToken(user.getUsername());
+            user.setToken(token);
+            return ResponseEntity.ok(user);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Google login error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @PutMapping("/forgotPassword")
     public ResponseEntity<MessageResponse> forgotPassword(@RequestBody UpdatePasswordRequest request) {
         AuthUser user = userService.getUserRoles(request.getUsername());
