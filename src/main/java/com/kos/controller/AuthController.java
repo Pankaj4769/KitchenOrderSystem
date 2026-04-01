@@ -1,5 +1,8 @@
 package com.kos.controller;
 
+import java.util.Map;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +20,12 @@ import com.kos.dto.AuthResponse;
 import com.kos.dto.AuthUser;
 import com.kos.dto.LoginRequest;
 import com.kos.dto.MessageResponse;
+import com.kos.dto.OtpRequest;
+import com.kos.dto.OtpVerifyRequest;
 import com.kos.dto.SignUpResponse;
 import com.kos.dto.SignupForm;
 import com.kos.dto.UpdatePasswordRequest;
+import com.kos.service.OtpService;
 import com.kos.service.UserService;
 
 
@@ -29,57 +35,92 @@ public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil;
-    
+
     @Autowired
     UserService userService;
 
+    @Autowired
+    OtpService otpService;
+
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
-
-        // Validate user manually or via AuthenticationManager
-    	    	
         if (request != null) {
-        	
         	AuthUser user = userService.getUser(request.getUsername());
         	AuthUser authUser = userService.getUserRoles(request.getUsername());
         	if(user.getUsername() != null && request.getPassword().equals(user.getPassword()) && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
-	            String token = jwtUtil.generateToken(request.getUsername());	
+	            String token = jwtUtil.generateToken(request.getUsername());
 	            return ResponseEntity.ok(new AuthResponse(token));
         	}
         }
-
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-    
+
     @GetMapping("/getUser/{username}")
-    public ResponseEntity<AuthUser> getUser(@PathVariable  String username) {
-    	    	
+    public ResponseEntity<AuthUser> getUser(@PathVariable String username) {
         if (username != null) {
-        	
         	AuthUser user = userService.getUserRoles(username);
-        	if(user != null && user.getStaffId() != null) {	
+        	if(user != null && user.getStaffId() != null) {
 	            return ResponseEntity.ok(user);
         	}
         }
-
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
-    
-    @PostMapping("/signUp")
-    public ResponseEntity<SignUpResponse> signUp(@RequestBody SignupForm form) {	
-    	return ResponseEntity.ok(userService.saveUser(form));	
+
+    @GetMapping("/getUserByEmail/{email}")
+    public ResponseEntity<AuthUser> getUserByEmail(@PathVariable String email) {
+        Optional<AuthUser> user = userService.getUserByEmail(email);
+        return user.map(ResponseEntity::ok)
+                   .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
-    
+
+    @PostMapping("/signUp")
+    public ResponseEntity<SignUpResponse> signUp(@RequestBody SignupForm form) {
+    	return ResponseEntity.ok(userService.saveUser(form));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthUser> googleLogin(@RequestBody Map<String, String> body) {
+        try {
+            String email = body.get("email");
+            String name  = body.get("name");
+            if (email == null || email.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+            AuthUser user  = userService.findOrCreateByGoogle(email, name);
+            String   token = jwtUtil.generateToken(user.getUsername());
+            user.setToken(token);
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // ── OTP endpoints ──────────────────────────────────────────
+
+    @PostMapping("/sendOtp")
+    public ResponseEntity<MessageResponse> sendOtp(@RequestBody OtpRequest request) {
+        boolean sent = otpService.sendOtp(request.getIdentifier(), request.getIdentifierType());
+        return ResponseEntity.ok(new MessageResponse(sent ? "OTP sent" : "failure", sent));
+    }
+
+    @PostMapping("/verifyOtp")
+    public ResponseEntity<MessageResponse> verifyOtp(@RequestBody OtpVerifyRequest request) {
+        boolean valid = otpService.verifyOtp(request.getIdentifier(), request.getIdentifierType(), request.getOtp());
+        return ResponseEntity.ok(new MessageResponse(valid ? "success" : "Invalid or expired OTP", valid));
+    }
+
+    // ── Forgot Password ────────────────────────────────────────
+
     @PutMapping("/forgotPassword")
     public ResponseEntity<MessageResponse> forgotPassword(@RequestBody UpdatePasswordRequest request) {
-        AuthUser user = userService.getUserRoles(request.getUsername());
-        if (user == null || user.getStaffId() == null) {
+        Optional<AuthUser> optUser = userService.getUserByIdentifier(request.getIdentifier(), request.getIdentifierType());
+        if (optUser.isEmpty()) {
             return ResponseEntity.ok(new MessageResponse("failure", false));
         }
+        AuthUser user = optUser.get();
         user.setPassword(request.getNewPassword());
         boolean updated = userService.updatePassword(user);
         return ResponseEntity.ok(new MessageResponse(updated ? "success" : "failure", updated));
     }
-    
-    
 }

@@ -51,6 +51,33 @@ public class UserService {
 	}
 	
 	
+	public Optional<AuthUser> getUserByEmail(String email) {
+		return userRepository.findByEmail(email);
+	}
+
+	public AuthUser findOrCreateByGoogle(String email, String name) {
+		Optional<AuthUser> existing = userRepository.findByEmail(email);
+		if (existing.isPresent()) {
+			return existing.get();
+		}
+		AuthUser newUser = new AuthUser();
+		newUser.setEmail(email);
+		newUser.setName(name);
+		newUser.setUsername(email);
+		newUser.setRole(UserRole.OWNER);
+		newUser.setFirstTime(true);
+		newUser.setOnboardingStatus(OnboardingStatus.NEW);
+		return userRepository.save(newUser);
+	}
+
+	public Optional<AuthUser> getUserByIdentifier(String identifier, String identifierType) {
+		switch (identifierType.toLowerCase()) {
+			case "email":  return userRepository.findByEmail(identifier);
+			case "mobile": return userRepository.findByMobile(identifier);
+			default:       return userRepository.findByUsername(identifier);
+		}
+	}
+
 	public boolean updatePassword(AuthUser user) {
 		try {
 			userRepository.save(user);
