@@ -11,7 +11,9 @@ import com.kos.dto.UserRole;
 public interface UserRepository extends JpaRepository<AuthUser, String>{
 
 	Optional<AuthUser> findByUsername(String username);
-	
+
+	Optional<AuthUser> findByEmail(String email);
+
 	Optional<AuthUser> findByMobile(String mobile);
 	
 	Optional<AuthUser> findByRestaurantIdAndRole(String restaurantId, UserRole role);
