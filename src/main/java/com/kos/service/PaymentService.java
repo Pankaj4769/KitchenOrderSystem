@@ -56,6 +56,7 @@ public class PaymentService {
 				
 				paymentResponse.setActivePlan(savedUser.getSubscriptionPlan().toString());
 				paymentResponse.setPaymentStatus(true);
+				paymentResponse.setRestaurantId(savedUser.getRestaurantId());
 				return paymentResponse;
 			}
 			}catch(Exception e) {
