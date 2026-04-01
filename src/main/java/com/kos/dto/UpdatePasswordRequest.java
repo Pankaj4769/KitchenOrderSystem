@@ -5,26 +5,22 @@ import jakarta.validation.constraints.Size;
 
 public class UpdatePasswordRequest {
 
-    @NotBlank(message = "Username is required")
-    private String username;
+    @NotBlank(message = "Identifier is required")
+    private String identifier;
+
+    @NotBlank(message = "Identifier type is required")
+    private String identifierType; // "username" | "email" | "mobile"
 
     @NotBlank(message = "New password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String newPassword;
 
-    public String getUsername() {
-        return username;
-    }
+    public String getIdentifier() { return identifier; }
+    public void setIdentifier(String identifier) { this.identifier = identifier; }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    public String getIdentifierType() { return identifierType; }
+    public void setIdentifierType(String identifierType) { this.identifierType = identifierType; }
 
-    public String getNewPassword() {
-        return newPassword;
-    }
-
-    public void setNewPassword(String newPassword) {
-        this.newPassword = newPassword;
-    }
+    public String getNewPassword() { return newPassword; }
+    public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
 }

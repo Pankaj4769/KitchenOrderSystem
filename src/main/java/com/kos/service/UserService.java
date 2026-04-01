@@ -60,15 +60,22 @@ public class UserService {
 		if (existing.isPresent()) {
 			return existing.get();
 		}
-		// New Google user — create as OWNER with onboarding flow
 		AuthUser newUser = new AuthUser();
 		newUser.setEmail(email);
 		newUser.setName(name);
-		newUser.setUsername(email); // use email as username for Google accounts
+		newUser.setUsername(email);
 		newUser.setRole(UserRole.OWNER);
 		newUser.setFirstTime(true);
 		newUser.setOnboardingStatus(OnboardingStatus.NEW);
 		return userRepository.save(newUser);
+	}
+
+	public Optional<AuthUser> getUserByIdentifier(String identifier, String identifierType) {
+		switch (identifierType.toLowerCase()) {
+			case "email":  return userRepository.findByEmail(identifier);
+			case "mobile": return userRepository.findByMobile(identifier);
+			default:       return userRepository.findByUsername(identifier);
+		}
 	}
 
 	public boolean updatePassword(AuthUser user) {
