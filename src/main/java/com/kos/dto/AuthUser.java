@@ -5,7 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.annotation.Nullable; // optional
+import jakarta.annotation.Nullable;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
 public class AuthUser {
@@ -28,6 +29,7 @@ public class AuthUser {
 
     private UserRole role;
     private String token;
+    @JsonProperty("isFirstTime")
     private boolean isFirstTime;
     private OnboardingStatus onboardingStatus;
 

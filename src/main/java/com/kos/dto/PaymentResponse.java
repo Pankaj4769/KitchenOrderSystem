@@ -4,6 +4,7 @@ public class PaymentResponse {
 
 	private boolean paymentStatus;
 	private String activePlan;
+	private String restaurantId;
 	
 	public boolean getPaymentStatus() {
 		return paymentStatus;
@@ -16,6 +17,12 @@ public class PaymentResponse {
 	}
 	public void setActivePlan(String activePlan) {
 		this.activePlan = activePlan;
+	}
+	public String getRestaurantId() {
+		return restaurantId;
+	}
+	public void setRestaurantId(String restaurantId) {
+		this.restaurantId = restaurantId;
 	}
 	
 	

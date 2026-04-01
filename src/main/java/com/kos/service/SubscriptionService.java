@@ -173,6 +173,7 @@ public class SubscriptionService{
     	if(dbUser.isPresent()) {
     		AuthUser user = dbUser.get();
     		user.setOnboardingStatus(OnboardingStatus.valueOf(setup.getOnboardingStatus()));
+    		user.setSubscriptionPlan(setup.getPlan());
     		AuthUser savedUser =  userRepository.save(user);
     		if(savedUser.getOnboardingStatus().equals(OnboardingStatus.valueOf(setup.getOnboardingStatus()))) {
     			resp.setMessage("success");
