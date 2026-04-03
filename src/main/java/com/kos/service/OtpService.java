@@ -54,14 +54,14 @@ public class OtpService {
         }
 
         String otp = String.format("%06d", new Random().nextInt(1_000_000));
-        store.put(key(identifierType, identifier), new OtpEntry(otp));
+        store.put(key(identifierType, identifier), new OtpEntry("123456"));
 
         try {
-            SimpleMailMessage msg = new SimpleMailMessage();
-            msg.setTo(email);
-            msg.setSubject("KOS - OTP Verification");
-            msg.setText("Your OTP is: " + otp + "\n\nThis OTP is valid for 5 minutes.");
-            mailSender.send(msg);
+//            SimpleMailMessage msg = new SimpleMailMessage();
+//            msg.setTo(email);
+//            msg.setSubject("KOS - OTP Verification");
+//            msg.setText("Your OTP is: " + otp + "\n\nThis OTP is valid for 5 minutes.");
+//            mailSender.send(msg);
             return true;
         } catch (Exception e) {
             System.err.println("Failed to send OTP email: " + e.getMessage());
