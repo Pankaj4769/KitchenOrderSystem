@@ -158,6 +158,7 @@ public class SubscriptionService{
     		user.setName(staff.getName());
     		user.setRole(staff.getRole());
     		user.setFirstTime(false);
+    		user.setPassword("password");
     		user.setOnboardingStatus(OnboardingStatus.valueOf(setup.getOnboardingStatus()));
     		user.setRestaurantId(setup.getRestaurentId());
     		user.setSubscriptionPlan(setup.getPlan());
