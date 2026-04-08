@@ -1,18 +1,33 @@
 package com.kos.service;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.kos.dto.AuthUser;
+import com.kos.dto.CartItem;
+import com.kos.dto.Item;
+import com.kos.dto.MessageResponse;
 import com.kos.dto.OnboardingStatus;
+import com.kos.dto.PaymentData;
 import com.kos.dto.PaymentRequest;
 import com.kos.dto.PaymentResponse;
 import com.kos.dto.Restaurent;
 import com.kos.dto.SubscriptionPlan;
+import com.kos.repository.CartItemRepository;
+import com.kos.repository.InventoryRepository;
+import com.kos.repository.PaymentDataRepository;
 import com.kos.repository.RestaurentRepository;
 import com.kos.repository.UserRepository;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 @Service
 public class PaymentService {
@@ -22,6 +37,12 @@ public class PaymentService {
 	
 	@Autowired
 	RestaurentRepository restaurentRepository;
+	
+	@Autowired
+	PaymentDataRepository paymentDataRepository;
+	
+	@Autowired
+	InventoryRepository inventoryRepository;
 
 	public PaymentResponse doPayment(PaymentRequest paymentReq) {
 		PaymentResponse paymentResponse = new PaymentResponse();
@@ -70,6 +91,122 @@ public class PaymentService {
 		return paymentResponse;
 		
 	}
+	
+	
+	/**
+     * Process payment atomically.
+     * @param paymentData the payment payload
+     * @return saved PaymentData
+	 * @throws Exception 
+     * @throws PaymentProcessingException if validation fails or save fails
+     */
+	@Transactional(rollbackFor = Exception.class)
+	public MessageResponse processPayment(@Valid @NotNull PaymentData paymentData) {
+	    MessageResponse response = new MessageResponse("failure", false);
+	    try {
+	        // 1️⃣ Validate required fields
+	        if (!validatePaymentData(paymentData)) {
+	            return response;
+	        }
+
+	        // 2️⃣ Set timestamp if missing
+	        if (paymentData.getTimestamp() == null) {
+	            paymentData.setTimestamp(Instant.now());
+	        }
+
+	        // 3️⃣ Handle CartItems safely
+	        List<CartItem> managedItems = new ArrayList<>();
+	        for (CartItem item : paymentData.getItems()) {
+	            if (item.getId() != null) {
+	                // Fetch the managed entity from DB
+	            	CartItem managedItem  = new CartItem();
+	            	managedItem.setAddedToCartStatus(item.getAddedToCartStatus());
+	            	managedItem.setQty(item.getQty());
+	                managedItem.setNotes(item.getNotes());
+	                managedItem.setPortion(item.getPortion());
+	                managedItem.setPrice(item.getPrice());
+	                managedItem.setCategory(item.getCategory());
+	                managedItem.setName(item.getName());
+	                managedItem.setImage(item.getImage());
+	                managedItems.add(managedItem);
+	            } else {
+	                // New item, persist as is
+	                managedItems.add(item);
+	            }
+	        }
+	        paymentData.setItems(managedItems);
+
+	        // 4️⃣ Save PaymentData (cascade should handle CartItems)
+	        PaymentData savedPayment = paymentDataRepository.save(paymentData);
+
+	        if (savedPayment.getId() != null) {
+	            response.setMessage("success");
+	            response.setStatus(true);
+	        }
+
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }
+	    return response;
+	}
+
+    /**
+     * Validate essential fields of payment
+     * @throws Exception 
+     */
+    private boolean validatePaymentData(PaymentData paymentData){
+        if (paymentData.getAmount() < 0) {
+            return false;
+        }
+
+        if (paymentData.getMethod() == null) {
+        	return false;
+        }
+
+        if (paymentData.getMode() == null) {
+        	return false;
+        }
+
+        if (!StringUtils.hasText(paymentData.getRestaurantId())) {
+        	return false;
+        }
+
+        if (paymentData.getItems() == null || paymentData.getItems().isEmpty()) {
+        	return false;
+        }
+
+        // Optional: Validate partPayments if present
+        if (paymentData.getPartPayments() != null) {
+            for (var part : paymentData.getPartPayments()) {
+                if (part.getAmount() < 0) {
+                	return false;
+                }
+                if (part.getMethod() == null) {
+                	return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Fetch payment by transactionId
+     * @throws Exception 
+     */
+    @Transactional(readOnly = true)
+    public PaymentData getPaymentByTransactionId(String transactionId) throws Exception {
+        return paymentDataRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new Exception("Payment not found: " + transactionId));
+    }
+
+    /**
+     * Fetch all payments for a restaurant
+     */
+    @Transactional(readOnly = true)
+    public List<PaymentData> getPaymentsByRestaurant(String restaurantId) {
+        return paymentDataRepository.findByRestaurantId(restaurantId);
+    }
+	
 	
 	
 }
