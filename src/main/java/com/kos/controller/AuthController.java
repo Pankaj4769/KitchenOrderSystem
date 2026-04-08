@@ -1,8 +1,6 @@
 package com.kos.controller;
 
-import java.util.Map;
-import java.util.Optional;
-
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -46,16 +44,49 @@ public class AuthController {
     OtpService otpService;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         if (request != null) {
-        	AuthUser user = userService.getUser(request.getUsername());
-        	AuthUser authUser = userService.getUserRoles(request.getUsername());
-        	if(user.getUsername() != null && request.getPassword().equals(user.getPassword()) && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
-	            String token = jwtUtil.generateToken(request.getUsername());
-	            return ResponseEntity.ok(new AuthResponse(token));
-        	}
+            AuthUser user = userService.getUser(request.getUsername());
+            AuthUser authUser = userService.getUserRoles(request.getUsername());
+            if (user.getUsername() != null && request.getPassword().equals(user.getPassword())
+                    && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
+
+                // Staff-only restriction: owner must have completed setup
+                com.kos.dto.UserRole role = authUser.getRole();
+                if (role != com.kos.dto.UserRole.OWNER) {
+                    String restaurantId = user.getRestaurantId();
+                    if (restaurantId == null || restaurantId.isBlank()) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(new MessageResponse("Your account is not linked to a restaurant. Contact your owner.", false));
+                    }
+                    java.util.Optional<AuthUser> ownerOpt = userService.getOwnerByRestaurantId(restaurantId);
+                    boolean ownerReady = ownerOpt
+                            .map(o -> o.getOnboardingStatus() == com.kos.dto.OnboardingStatus.SETUP_COMPLETE)
+                            .orElse(false);
+                    if (!ownerReady) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(new MessageResponse("Restaurant setup is not complete. Please contact your owner.", false));
+                    }
+                }
+
+                String token = jwtUtil.generateToken(request.getUsername());
+                return ResponseEntity.ok(new AuthResponse(token));
+            }
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @PutMapping("/resetTempPassword")
+    public ResponseEntity<?> resetTempPassword(@RequestBody Map<String, String> body) {
+        String username    = body.get("username");
+        String newPassword = body.get("newPassword");
+        if (username == null || username.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(new MessageResponse("username and newPassword are required", false));
+        }
+        return userService.resetTempPassword(username, newPassword)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new MessageResponse("User not found", false)));
     }
 
     @GetMapping("/getUser/{username}")
@@ -79,6 +110,27 @@ public class AuthController {
     @PostMapping("/signUp")
     public ResponseEntity<SignUpResponse> signUp(@RequestBody SignupForm form) {
     	return ResponseEntity.ok(userService.saveUser(form));
+    }
+
+    @PostMapping("/addStaff")
+    public ResponseEntity<AuthUser> addStaff(@RequestBody AuthUser request) {
+        return ResponseEntity.ok(userService.createStaff(request));
+    }
+
+    @GetMapping("/staff/{restaurantId}")
+    public ResponseEntity<List<AuthUser>> getStaffByRestaurant(@PathVariable String restaurantId) {
+        List<AuthUser> staff = userService.getStaffByRestaurant(restaurantId);
+        return ResponseEntity.ok(staff);
+    }
+
+    @PostMapping("/resendTempPassword")
+    public ResponseEntity<MessageResponse> resendTempPassword(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        if (username == null || username.isBlank()) {
+            return ResponseEntity.badRequest().body(new MessageResponse("username is required", false));
+        }
+        boolean sent = userService.resendTempPassword(username);
+        return ResponseEntity.ok(new MessageResponse(sent ? "Temporary password sent" : "Failed to send", sent));
     }
 
     @PostMapping("/google")

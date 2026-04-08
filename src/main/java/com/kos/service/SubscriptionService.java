@@ -37,9 +37,12 @@ public class SubscriptionService{
 	SubscriptionRepository subscriptionRepository;
 	@Autowired
 	SubscriptionPlanRepository planRepository;
-	
+
 	@Autowired
 	UserRepository userRepository;
+
+	@Autowired
+	UserService userService;
 
     public SubscriptionResponseDTO assignPlan(SubscriptionRequestDTO request) {
         SubscriptionPlan plan = planRepository.findByPlanName(request.getPlanName())
@@ -162,9 +165,14 @@ public class SubscriptionService{
     		user.setOnboardingStatus(OnboardingStatus.valueOf(setup.getOnboardingStatus()));
     		user.setRestaurantId(setup.getRestaurentId());
     		user.setSubscriptionPlan(setup.getPlan());
+    		// username = mobile number
     		user.setUsername(staff.getMobile());
+    		// Generate and set temp password
+    		String tempPassword = userService.generateTempPassword();
+    		user.setPassword(tempPassword);
     		userRepository.save(user);
-    	
+    		// Send credentials via email
+    		userService.sendStaffCredentials(staff.getEmail(), staff.getName(), staff.getMobile(), tempPassword);
     	}
     	
     	
