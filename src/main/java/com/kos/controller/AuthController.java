@@ -23,6 +23,7 @@ import com.kos.dto.LoginRequest;
 import com.kos.dto.MessageResponse;
 import com.kos.dto.OtpRequest;
 import com.kos.dto.OtpVerifyRequest;
+import com.kos.dto.ResetTempPasswordRequest;
 import com.kos.dto.SignUpResponse;
 import com.kos.dto.SignupForm;
 import com.kos.dto.UpdatePasswordRequest;
@@ -77,13 +78,8 @@ public class AuthController {
     }
 
     @PutMapping("/resetTempPassword")
-    public ResponseEntity<?> resetTempPassword(@RequestBody Map<String, String> body) {
-        String username    = body.get("username");
-        String newPassword = body.get("newPassword");
-        if (username == null || username.isBlank() || newPassword == null || newPassword.isBlank()) {
-            return ResponseEntity.badRequest().body(new MessageResponse("username and newPassword are required", false));
-        }
-        return userService.resetTempPassword(username, newPassword)
+    public ResponseEntity<?> resetTempPassword(@RequestBody ResetTempPasswordRequest request) {
+        return userService.resetTempPassword(request.getUsername(), request.getNewPassword())
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new MessageResponse("User not found", false)));
