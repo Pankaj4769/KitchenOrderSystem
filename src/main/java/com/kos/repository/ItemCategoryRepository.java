@@ -19,6 +19,10 @@ public interface ItemCategoryRepository extends JpaRepository<ItemCategory, Inte
 	
 	@Query("SELECT categoryType FROM ItemCategory WHERE itemId = :itemId")
     List<String> findCategoryByItemId(@Param("itemId") Integer itemId);
+
+	@Query("SELECT DISTINCT ic.categoryType FROM ItemCategory ic " +
+	       "WHERE ic.itemId IN (SELECT i.itemId FROM Item i WHERE i.restaurantId = :restId)")
+    List<String> findDistinctCategoriesByRestaurantId(@Param("restId") String restId);
 	
 	@Modifying
 	@Transactional

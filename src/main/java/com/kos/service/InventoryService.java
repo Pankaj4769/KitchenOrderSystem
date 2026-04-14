@@ -70,6 +70,10 @@ public class InventoryService {
 		 return inventoryRepository.save(existingItem);
 	}
 	
+	public List<String> getMenuCategories(String restId) {
+		return itemCategoryRepository.findDistinctCategoriesByRestaurantId(restId);
+	}
+
 	public List<Item> getAllItems(String restId){
 		Optional<List<Item>>  itemList= inventoryRepository.findItemListByRestaurantId(restId);
 		if(itemList.isEmpty()) {
