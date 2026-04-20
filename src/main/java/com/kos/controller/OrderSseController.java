@@ -34,8 +34,10 @@ public class OrderSseController {
         for (SseEmitter emitter : emitters) {
             try {
                 emitter.send(order);
-            } catch (IOException e) {
+            } catch (Exception e) {
+                // Client disconnected or emitter in bad state — clean up silently
                 emitters.remove(emitter);
+                try { emitter.completeWithError(e); } catch (Exception ignored) {}
             }
         }
     }
