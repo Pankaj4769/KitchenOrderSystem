@@ -28,6 +28,8 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/order-stream").permitAll()   // SSE — no auth header possible on EventSource
+                .requestMatchers("/customer/**").permitAll()    // public QR ordering
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter,

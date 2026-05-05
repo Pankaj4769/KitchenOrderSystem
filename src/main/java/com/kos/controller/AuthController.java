@@ -5,8 +5,16 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +23,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
 import com.kos.authentication.JwtUtil;
 import com.kos.dto.AuthResponse;
@@ -43,6 +52,20 @@ public class AuthController {
 
     @Autowired
     OtpService otpService;
+
+    @Value("${zoho.client-id}")
+    private String zohoClientId;
+
+    @Value("${zoho.client-secret}")
+    private String zohoClientSecret;
+
+    @Value("${zoho.token-url}")
+    private String zohoTokenUrl;
+
+    @Value("${zoho.userinfo-url}")
+    private String zohoUserinfoUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
@@ -141,6 +164,71 @@ public class AuthController {
             String   token = jwtUtil.generateToken(user.getUsername());
             user.setToken(token);
             return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // ── Zoho OAuth ─────────────────────────────────────────────
+
+    @PostMapping("/zoho")
+    public ResponseEntity<AuthUser> zohoLogin(@RequestBody Map<String, String> body) {
+        try {
+            String code        = body.get("code");
+            String redirectUri = body.get("redirectUri");
+
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("grant_type",    "authorization_code");
+            params.add("client_id",     zohoClientId);
+            params.add("client_secret", zohoClientSecret);
+            params.add("redirect_uri",  redirectUri);
+            params.add("code",          code);
+
+            HttpHeaders formHeaders = new HttpHeaders();
+            formHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            Map<String, Object> tokenRes = restTemplate.exchange(
+                zohoTokenUrl,
+                HttpMethod.POST,
+                new HttpEntity<>(params, formHeaders),
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+            ).getBody();
+
+            if (tokenRes == null || !tokenRes.containsKey("access_token")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            String zohoAccessToken = (String) tokenRes.get("access_token");
+
+            // Step 2: Fetch Zoho user profile
+            HttpHeaders bearerHeaders = new HttpHeaders();
+            bearerHeaders.setBearerAuth(zohoAccessToken);
+
+            Map<String, Object> profile = restTemplate.exchange(
+                zohoUserinfoUrl,
+                HttpMethod.GET,
+                new HttpEntity<>(bearerHeaders),
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+            ).getBody();
+
+            if (profile == null) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+
+            String email = (String) profile.get("email");
+            String name  = (String) profile.getOrDefault("name", email);
+
+            if (email == null || email.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+
+            // Step 3: Find or create user, issue JWT
+            AuthUser user  = userService.findOrCreateByZoho(email, name);
+            String   token = jwtUtil.generateToken(user.getUsername());
+            user.setToken(token);
+            return ResponseEntity.ok(user);
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

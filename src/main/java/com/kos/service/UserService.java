@@ -86,6 +86,21 @@ public class UserService {
 		return userRepository.save(newUser);
 	}
 
+	public AuthUser findOrCreateByZoho(String email, String name) {
+		Optional<AuthUser> existing = userRepository.findByEmail(email);
+		if (existing.isPresent()) {
+			return existing.get();
+		}
+		AuthUser newUser = new AuthUser();
+		newUser.setEmail(email);
+		newUser.setName(name != null ? name : email);
+		newUser.setUsername(email);
+		newUser.setRole(UserRole.OWNER);
+		newUser.setFirstTime(true);
+		newUser.setOnboardingStatus(OnboardingStatus.NEW);
+		return userRepository.save(newUser);
+	}
+
 	public Optional<AuthUser> getUserByIdentifier(String identifier, String identifierType) {
 		switch (identifierType.toLowerCase()) {
 			case "email":  return userRepository.findByEmail(identifier);
