@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
@@ -39,6 +40,14 @@ public class GlobalExceptionHandler {
         );
 
         return new ResponseEntity<>(error, ex.getStatusCode());
+    }
+
+    /* =========================
+       SSE client disconnect — swallow silently, no response body
+       ========================= */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleSseDisconnect(AsyncRequestNotUsableException ex) {
+        return ResponseEntity.noContent().build();
     }
 
     /* =========================
