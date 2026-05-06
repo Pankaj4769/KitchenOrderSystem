@@ -32,6 +32,7 @@ public class AuthUser {
     @JsonProperty("isFirstTime")
     private boolean isFirstTime;
     private OnboardingStatus onboardingStatus;
+    private boolean mustResetPassword;
 
     @Nullable
     private SubscriptionPlan subscriptionPlan;
@@ -134,7 +135,13 @@ public class AuthUser {
 	public void setPassword(String password) {
 		this.password = password;
 	}
-    
-    
+
+	public boolean isMustResetPassword() {
+		return mustResetPassword;
+	}
+
+	public void setMustResetPassword(boolean mustResetPassword) {
+		this.mustResetPassword = mustResetPassword;
+	}
 
 }
