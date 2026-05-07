@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
@@ -43,10 +44,19 @@ public class GlobalExceptionHandler {
     }
 
     /* =========================
-       SSE client disconnect — swallow silently, no response body
+       SSE client disconnect or timeout — swallow silently.
+       The response is already committed as text/event-stream;
+       writing a body (e.g. ErrorResponse JSON) would throw
+       HttpMessageNotWritableException — so we return void.
        ========================= */
     @ExceptionHandler(AsyncRequestNotUsableException.class)
     public ResponseEntity<Void> handleSseDisconnect(AsyncRequestNotUsableException ex) {
+        return ResponseEntity.noContent().build();
+    }
+
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public ResponseEntity<Void> handleSseTimeout(AsyncRequestTimeoutException ex) {
+        // Normal SSE lifecycle — client will auto-reconnect
         return ResponseEntity.noContent().build();
     }
 
@@ -54,16 +64,16 @@ public class GlobalExceptionHandler {
        Fallback (ANY exception)
        ========================= */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneric(
-            Exception ex) {
-    	
-    	ex.printStackTrace();
-
+    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        // Skip logging for routine SSE lifecycle exceptions to reduce noise
+        String msg = ex.getMessage();
+        if (msg == null || !msg.contains("event-stream")) {
+            ex.printStackTrace();
+        }
         ErrorResponse error = new ErrorResponse(
-                "Internal server error" + ex.getMessage(),
+                "Internal server error: " + ex.getMessage(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value()
         );
-
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
