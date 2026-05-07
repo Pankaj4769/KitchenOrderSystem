@@ -1,63 +1,51 @@
 package com.kos.dto;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
 
-
+@Entity
+@Table(name = "kos_order_items")
 public class OrderItem {
-	
-    private Integer orderItemId;
-	private String itemName;
-    private Integer itemId;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+
     private Integer quantity;
-    private Integer itemPrice;
-    // 🔗 THIS IS THE IMPORTANT PART
-    // Many OrderItems belong to ONE Order
-// FK column in order_item table
+
+    private Double price;
+
+    private String notes;
+
+    private String category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    @JsonIgnore
     private Order order;
 
-    public Integer getOrderItemId() {
-        return orderItemId;
-    }
+    // ── Getters & Setters ──────────────────────────────────
 
-    public void setOrderItemId(Integer orderItemId) {
-        this.orderItemId = orderItemId;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public Integer getItemId() {
-        return itemId;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public void setItemId(Integer itemId) {
-        this.itemId = itemId;
-    }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
 
-    public Integer getQuantity() {
-        return quantity;
-    }
+    public Double getPrice() { return price; }
+    public void setPrice(Double price) { this.price = price; }
 
-    public void setQuantity(Integer quantity) {
-        this.quantity = quantity;
-    }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
 
-    public Integer getItemPrice() {
-        return itemPrice;
-    }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
-    public void setItemPrice(Integer itemPrice) {
-        this.itemPrice = itemPrice;
-    }
-
-	public String getItemName() {
-		return itemName;
-	}
-
-	public void setItemName(String itemName) {
-		this.itemName = itemName;
-	}
-
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
 }

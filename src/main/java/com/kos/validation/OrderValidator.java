@@ -6,7 +6,7 @@ import com.kos.exception.InvalidInputException;
 public class OrderValidator {
 
     public static void validate(Order order) {
-        if (order.getOrderItems() == null || order.getOrderItems().isEmpty()) {
+        if (order.getItems() == null || order.getItems().isEmpty()) {
             throw new InvalidInputException("Order must contain at least one item");
         }
     }

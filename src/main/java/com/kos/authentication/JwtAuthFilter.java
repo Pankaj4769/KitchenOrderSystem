@@ -28,8 +28,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        // Skip login/register endpoints
-        if (path.startsWith("/auth/")) {
+        // Skip login/register and SSE stream (EventSource can't send Authorization header)
+        if (path.startsWith("/auth/") || path.equals("/order-stream")) {
             filterChain.doFilter(request, response);
             return;
         }
