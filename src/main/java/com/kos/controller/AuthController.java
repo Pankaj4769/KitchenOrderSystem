@@ -1,13 +1,13 @@
 package com.kos.controller;
 
 import java.util.List;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -88,10 +88,10 @@ public class AuthController {
     @GetMapping("/getUser/{username}")
     public ResponseEntity<AuthUser> getUser(@PathVariable String username) {
         if (username != null) {
-        	AuthUser user = userService.getUserRoles(username);
-        	if(user != null && user.getStaffId() != null) {
-	            return ResponseEntity.ok(user);
-        	}
+            AuthUser user = userService.getUserRoles(username);
+            if (user != null && user.getStaffId() != null) {
+                return ResponseEntity.ok(user);
+            }
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     }
@@ -103,20 +103,25 @@ public class AuthController {
                    .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
+    /**
+     * GET /auth/staff/{restaurantId}
+     * Returns all staff members registered under the given restaurant.
+     * Used by the POS waiter selection popup to list available waiters.
+     */
+    @GetMapping("/staff/{restaurantId}")
+    public ResponseEntity<List<AuthUser>> getStaffByRestaurant(@PathVariable String restaurantId) {
+        List<AuthUser> staff = userService.getStaffByRestaurant(restaurantId);
+        return ResponseEntity.ok(staff);
+    }
+
     @PostMapping("/signUp")
     public ResponseEntity<SignUpResponse> signUp(@RequestBody SignupForm form) {
-    	return ResponseEntity.ok(userService.saveUser(form));
+        return ResponseEntity.ok(userService.saveUser(form));
     }
 
     @PostMapping("/addStaff")
     public ResponseEntity<AuthUser> addStaff(@RequestBody AuthUser request) {
         return ResponseEntity.ok(userService.createStaff(request));
-    }
-
-    @GetMapping("/staff/{restaurantId}")
-    public ResponseEntity<List<AuthUser>> getStaffByRestaurant(@PathVariable String restaurantId) {
-        List<AuthUser> staff = userService.getStaffByRestaurant(restaurantId);
-        return ResponseEntity.ok(staff);
     }
 
     @PostMapping("/resendTempPassword")

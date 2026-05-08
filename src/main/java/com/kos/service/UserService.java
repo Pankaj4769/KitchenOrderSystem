@@ -241,16 +241,11 @@ public class UserService {
 					response.setStatus(true);
 				}
 			}
-			
-			
 		}else {
 			response.setMessage("failure");
 			response.setStatus(false);
 		}
 		
 		return response;
-		
 	}
-	
-	
 }
