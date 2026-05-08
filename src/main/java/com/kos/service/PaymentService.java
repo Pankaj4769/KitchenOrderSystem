@@ -1,6 +1,9 @@
 package com.kos.service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +18,8 @@ import com.kos.dto.CartItem;
 import com.kos.dto.Item;
 import com.kos.dto.MessageResponse;
 import com.kos.dto.OnboardingStatus;
+import com.kos.dto.Order;
+import com.kos.dto.OrderItem;
 import com.kos.dto.PaymentData;
 import com.kos.dto.PaymentRequest;
 import com.kos.dto.PaymentResponse;
@@ -22,6 +27,7 @@ import com.kos.dto.Restaurent;
 import com.kos.dto.SubscriptionPlan;
 import com.kos.repository.CartItemRepository;
 import com.kos.repository.InventoryRepository;
+import com.kos.repository.OrderRepository;
 import com.kos.repository.PaymentDataRepository;
 import com.kos.repository.RestaurentRepository;
 import com.kos.repository.UserRepository;
@@ -43,6 +49,9 @@ public class PaymentService {
 	
 	@Autowired
 	InventoryRepository inventoryRepository;
+	
+	@Autowired
+	OrderRepository orderRepo;
 
 	public PaymentResponse doPayment(PaymentRequest paymentReq) {
 		PaymentResponse paymentResponse = new PaymentResponse();
@@ -139,7 +148,7 @@ public class PaymentService {
 	        // 4️⃣ Save PaymentData (cascade should handle CartItems)
 	        PaymentData savedPayment = paymentDataRepository.save(paymentData);
 
-	        if (savedPayment.getId() != null) {
+	        if (savedPayment.getId() != null && saveOrder(paymentData)) {
 	            response.setMessage("success");
 	            response.setStatus(true);
 	        }
@@ -150,7 +159,49 @@ public class PaymentService {
 	    return response;
 	}
 
-    /**
+    private boolean saveOrder(@Valid @NotNull PaymentData paymentData) {
+	
+    	Order ord = new Order();
+    	ord.setCustomerName("Guest");
+    	ord.setEstimatedTime(null);
+    	List<OrderItem> ordList = new ArrayList<OrderItem>();
+    	ord.setKotRound(null);
+    	ord.setNotes(null);
+    	ord.setOrderNumber("ORD-"+System.currentTimeMillis());
+    	ord.setOrderTime(LocalDateTime.now());
+    	ord.setPaymentDate(LocalDateTime.now());
+    	ord.setPaymentStatus("PAID");
+    	ord.setPrepTime(null);
+    	ord.setPriority("MEDIUM");
+    	ord.setRestaurantId(paymentData.getRestaurantId());
+    	ord.setSessionId(null);
+    	ord.setStatus("PAID");
+    	ord.setTableId(null);
+    	ord.setTableName(null);
+    	for(CartItem i: paymentData.getItems()) {
+    		OrderItem itm = new OrderItem();
+    		itm.setId(null);
+    		itm.setName(i.getName());
+    		itm.setNotes(i.getNotes());
+    		itm.setOrder(ord);
+    		BigDecimal bd = new BigDecimal(i.getPrice().toString());
+    		itm.setPrice(bd.doubleValue());
+    		itm.setQuantity(i.getQty());
+    		ordList.add(itm);
+    		
+    	}
+    	ord.setItems(ordList);
+    	
+    	Order saved = orderRepo.save(ord);
+    	if(saved.getId() > 0) {
+    		return true;
+    	}
+    	
+		return false;
+	}
+
+
+	/**
      * Validate essential fields of payment
      * @throws Exception 
      */
