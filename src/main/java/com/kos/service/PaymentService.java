@@ -187,6 +187,7 @@ public class PaymentService {
     		BigDecimal bd = new BigDecimal(i.getPrice().toString());
     		itm.setPrice(bd.doubleValue());
     		itm.setQuantity(i.getQty());
+    		itm.setCategory(i.getCategory());
     		ordList.add(itm);
     		
     	}
