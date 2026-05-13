@@ -89,4 +89,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT FUNCTION('HOUR', o.orderTime), SUM(o.totalAmount) FROM Order o WHERE o.restaurantId = :rid AND o.status = 'SERVED' AND o.orderTime BETWEEN :start AND :end GROUP BY FUNCTION('HOUR', o.orderTime)")
     List<Object[]> getRevenueByHourByDate(@Param("rid") String restaurantId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.restaurantId = :rid AND o.paymentStatus = 'PAID' AND o.orderTime BETWEEN :start AND :end")
+    long countPaidOrdersByDate(@Param("rid") String restaurantId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }
