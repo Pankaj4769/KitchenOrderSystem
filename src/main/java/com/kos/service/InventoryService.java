@@ -3,6 +3,11 @@ package com.kos.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Base64;
+import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -29,12 +34,51 @@ public class InventoryService {
 	
 	@Autowired
 	ItemCategoryRepository itemCategoryRepository;
-	
+
+	private String saveImage(String base64Image, String restaurantId) {
+	    try {
+	        if (base64Image == null || !base64Image.startsWith("data:image")) {
+	            return base64Image;
+	        }
+	        
+	        String[] parts = base64Image.split(",");
+	        String imageString = parts.length > 1 ? parts[1] : parts[0];
+	        
+	        byte[] imageBytes = Base64.getDecoder().decode(imageString);
+	        
+	        // The absolute path requested by the user
+	        String basePath = "D:/kos_new/kosUI/kosUI/src/assets";
+	        
+	        // Create the restaurant-specific folder if it doesn't exist
+	        String folderName = (restaurantId != null && !restaurantId.isBlank()) ? restaurantId : "default";
+	        Path path = Paths.get(basePath, folderName);
+	        if (!Files.exists(path)) {
+	            Files.createDirectories(path);
+	        }
+	        
+	        String filename = UUID.randomUUID().toString() + ".jpg";
+	        Path filePath = path.resolve(filename);
+	        Files.write(filePath, imageBytes);
+	        
+	        // Return the relative path for the frontend (e.g. "/assets/77/uuid.jpg")
+	        return "/assets/" + folderName + "/" + filename;
+	    } catch (Exception e) {
+	        logger.error("Failed to save image", e);
+	        return null;
+	    }
+	}
+
 	public Item addItem(Item item) {
 	  
 	    InventoryValidator.validateQuantity(item);
 		try {
 			item.setItem_status(true);
+			
+			// Process Base64 image and save as file
+			if (item.getItemImgName() != null && item.getItemImgName().startsWith("data:image")) {
+			    item.setItemImgName(saveImage(item.getItemImgName(), item.getRestaurantId()));
+			}
+			
 			Item itm = inventoryRepository.saveAndFlush(item);
 			if(itm != null && itm.getItemId()!= null) {
 				for(String category: item.getCategories()) {
@@ -46,7 +90,7 @@ public class InventoryService {
 			}
 			return itm;
 		}catch(Exception e){
-			logger.debug("Not able to  save item. Some Exception occurred");
+			logger.debug("Not able to  save item. Some Exception occurred", e);
 			return new Item();
 		}
 		 
@@ -117,9 +161,13 @@ public class InventoryService {
 			}
 	}
 	public Item updateItem(Item item) {
+		if (item.getItemId() == null) {
+			logger.warn("updateItem called with null itemId — skipping update");
+			return new Item();
+		}
 		Item existing = getItemById(item.getItemId());
-      
-		if (existing !=null) {
+
+		if (existing != null) {
 		    existing.setItemName(item.getItemName());
 		    existing.setItemPrice(item.getItemPrice());
 		    existing.setItem_status(item.getItem_status());
@@ -127,18 +175,28 @@ public class InventoryService {
 		    existing.setItemType(item.getItemType());
 		    existing.setFromTime(item.getFromTime());
 		    existing.setToTime(item.getToTime());
-		    itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
 		    
-		    for (String category:item.getCategories()) {
+		    // Persist image — process Base64 if a new one was provided, otherwise keep existing URL
+		    if (item.getItemImgName() != null && !item.getItemImgName().isBlank()) {
+		        if (item.getItemImgName().startsWith("data:image")) {
+		            existing.setItemImgName(saveImage(item.getItemImgName(), existing.getRestaurantId()));
+		        } else {
+		            existing.setItemImgName(item.getItemImgName());
+		        }
+		    }
+		    
+		    itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
+
+		    for (String category : item.getCategories()) {
 		    	ItemCategory itemCategory = new ItemCategory();
 		    	itemCategory.setItemId(item.getItemId());
 		    	itemCategory.setCategoryType(category);
 		    	itemCategoryRepository.save(itemCategory);
 		    }
-		    
+
 		    return inventoryRepository.save(existing);
 		}
-    return null;
-}
+		return null;
+	}
 
 }
