@@ -26,6 +26,12 @@ public class Subscription {
     @Column(nullable = false)
     private LocalDate expiryDate;
 
+    @Column(name = "trial_end_date")
+    private LocalDate trialEndDate;
+
+    @Column(name = "mandate_id")
+    private String mandateId;
+
     @Enumerated(EnumType.STRING)
     private SubscriptionStatus status;  // ACTIVE, EXPIRED, CANCELLED, TRIAL
 
@@ -74,6 +80,22 @@ public class Subscription {
 
 	public void setExpiryDate(LocalDate expiryDate) {
 		this.expiryDate = expiryDate;
+	}
+
+	public LocalDate getTrialEndDate() {
+		return trialEndDate;
+	}
+
+	public void setTrialEndDate(LocalDate trialEndDate) {
+		this.trialEndDate = trialEndDate;
+	}
+
+	public String getMandateId() {
+		return mandateId;
+	}
+
+	public void setMandateId(String mandateId) {
+		this.mandateId = mandateId;
 	}
 
 	public SubscriptionStatus getStatus() {

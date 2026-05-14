@@ -18,6 +18,8 @@ public class SubscriptionResponseDTO {
     private SubscriptionStatus status;
     private List<String> allowedFeatures;
     private long daysRemaining;
+    private boolean isTrialActive;
+    private LocalDate trialEndDate;
 	public Long getSubscriptionId() {
 		return subscriptionId;
 	}
@@ -72,7 +74,19 @@ public class SubscriptionResponseDTO {
 	public void setDaysRemaining(long daysRemaining) {
 		this.daysRemaining = daysRemaining;
 	}
-    
-    
-    
+	public boolean isTrialActive() {
+		return isTrialActive;
+	}
+	public void setTrialActive(boolean isTrialActive) {
+		this.isTrialActive = isTrialActive;
+	}
+	public LocalDate getTrialEndDate() {
+		return trialEndDate;
+	}
+	public void setTrialEndDate(LocalDate trialEndDate) {
+		this.trialEndDate = trialEndDate;
+	}
+
+
+
 }

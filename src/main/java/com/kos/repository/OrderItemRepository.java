@@ -47,4 +47,17 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
         ORDER BY SUM(i.quantity) DESC
     """)
     List<Object[]> getTopSellingItemsByDate(@Param("rid") String restaurantId, @Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+
+    @Query("""
+        SELECT i.name, MAX(i.category),
+               SUM(i.quantity),
+               SUM(i.quantity * i.price)
+        FROM OrderItem i
+        WHERE i.order.restaurantId = :rid
+          AND i.order.paymentStatus = 'PAID'
+          AND i.order.orderTime BETWEEN :start AND :end
+        GROUP BY i.name
+        ORDER BY SUM(i.quantity) DESC
+    """)
+    List<Object[]> getTopSellingByPaidOrdersByDate(@Param("rid") String restaurantId, @Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
 }

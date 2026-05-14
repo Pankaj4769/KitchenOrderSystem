@@ -49,7 +49,6 @@ public class UserService {
 		Optional<AuthUser> user = userRepository.findByUsername(username);
 		if(user.isPresent()) {
 			return user.get();
-			
 		}else {
 			return new AuthUser();
 		}

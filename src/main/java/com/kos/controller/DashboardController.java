@@ -17,8 +17,9 @@ public class DashboardController {
 
     @GetMapping("/data/{id}")
     public ResponseEntity<DashboardResponse> getDashboard(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "today") String dateRange) {
 
-        return ResponseEntity.ok(dashboardService.getDashboardData(id));
+        return ResponseEntity.ok(dashboardService.getDashboardData(id, dateRange));
     }
 }

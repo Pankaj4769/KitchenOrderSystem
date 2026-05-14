@@ -28,8 +28,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        // Skip login/register and SSE stream (EventSource can't send Authorization header)
-        if (path.startsWith("/auth/") || path.equals("/order-stream")) {
+        // Skip login/register, SSE stream, and public static resources (item images)
+        if (path.startsWith("/auth/") || path.equals("/order-stream") || path.startsWith("/restaurant-images/")) {
             filterChain.doFilter(request, response);
             return;
         }

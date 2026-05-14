@@ -30,8 +30,12 @@ public class SalesAnalyticsService {
     public SalesReportResponse generateReport(String restaurantId, LocalDateTime start, LocalDateTime end, String plan) {
         SalesReportResponse response = new SalesReportResponse();
         
+        // Derive dateRange string from the start/end window so DashboardService applies the same filter
+        long daySpan = java.time.temporal.ChronoUnit.DAYS.between(start.toLocalDate(), end.toLocalDate());
+        String dateRange = daySpan <= 1 ? "today" : daySpan <= 7 ? "week" : "month";
+
         // Use DashboardService to get accurate base data
-        com.kos.dto.DashboardResponse dashData = dashboardService.getDashboardData(Long.parseLong(restaurantId));
+        com.kos.dto.DashboardResponse dashData = dashboardService.getDashboardData(Long.parseLong(restaurantId), dateRange);
         
         // Fetch Restaurant Details
         com.kos.dto.Restaurent rest = restaurentRepository.findById(Integer.parseInt(restaurantId)).orElse(null);

@@ -24,6 +24,7 @@ public class Item {
 	@JsonProperty("name")
 	private String itemName;
 	@JsonProperty("image")
+	@Column(name = "item_img_name")
 	private String itemImgName;
 	@JsonProperty("price")
 	private Integer itemPrice;

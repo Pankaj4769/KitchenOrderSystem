@@ -16,4 +16,13 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     List<Subscription> findByExpiryDateBeforeAndStatus(LocalDate date, SubscriptionStatus status);
 
     List<Subscription> findByRestaurantId(Long restaurantId);
+
+    // Find subscription by restaurantId when status is one of several values (for trial + active checks)
+    Optional<Subscription> findByRestaurantIdAndStatusIn(Long restaurantId, List<SubscriptionStatus> statuses);
+
+    // Find all TRIAL subscriptions whose trial period has ended
+    List<Subscription> findByTrialEndDateBeforeAndStatus(LocalDate date, SubscriptionStatus status);
+
+    // Check whether restaurant ever had a non-CANCELLED subscription (trial eligibility guard)
+    boolean existsByRestaurantIdAndStatusNot(Long restaurantId, SubscriptionStatus status);
 }

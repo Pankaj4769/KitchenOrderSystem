@@ -17,4 +17,7 @@ public interface PaymentDataRepository extends JpaRepository<PaymentData, Long> 
 
     @org.springframework.data.jpa.repository.Query("SELECT p.method, COUNT(p), SUM(p.amount) FROM PaymentData p WHERE p.restaurantId = :rid AND p.timestamp BETWEEN :start AND :end GROUP BY p.method")
     List<Object[]> getPaymentBreakdownByDate(@org.springframework.data.repository.query.Param("rid") String restaurantId, @org.springframework.data.repository.query.Param("start") java.time.Instant start, @org.springframework.data.repository.query.Param("end") java.time.Instant end);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(p.amount), 0.0) FROM PaymentData p WHERE p.restaurantId = :rid AND p.timestamp BETWEEN :start AND :end")
+    Double sumAmountByDateRange(@org.springframework.data.repository.query.Param("rid") String restaurantId, @org.springframework.data.repository.query.Param("start") java.time.Instant start, @org.springframework.data.repository.query.Param("end") java.time.Instant end);
 }
