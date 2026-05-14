@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.annotation.Nullable;
+import org.hibernate.annotations.Formula;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
@@ -39,6 +40,9 @@ public class AuthUser {
 
     @Nullable
     private String restaurantId;
+
+    @Formula("(SELECT r.restaurent_name FROM restaurent r WHERE r.restaurent_id = CAST(restaurant_id AS UNSIGNED))")
+    private String restaurantName;
 
 	public Integer getStaffId() {
 		return staffId;
@@ -126,6 +130,15 @@ public class AuthUser {
 
 	public void setRestaurantId(String restaurantId) {
 		this.restaurantId = restaurantId;
+	}
+
+	@JsonProperty("restaurantName")
+	public String getRestaurantName() {
+		return restaurantName;
+	}
+
+	public void setRestaurantName(String restaurantName) {
+		this.restaurantName = restaurantName;
 	}
 
 	public String getPassword() {

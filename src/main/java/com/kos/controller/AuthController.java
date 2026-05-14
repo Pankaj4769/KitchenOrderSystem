@@ -1,6 +1,6 @@
 package com.kos.controller;
 
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -86,11 +86,26 @@ public class AuthController {
     }
 
     @GetMapping("/getUser/{username}")
-    public ResponseEntity<AuthUser> getUser(@PathVariable String username) {
+    public ResponseEntity<?> getUser(@PathVariable String username) {
         if (username != null) {
             AuthUser user = userService.getUserRoles(username);
             if (user != null && user.getStaffId() != null) {
-                return ResponseEntity.ok(user);
+                Map<String, Object> response = new LinkedHashMap<>();
+                response.put("staffId", user.getStaffId());
+                response.put("name", user.getName());
+                response.put("username", user.getUsername());
+                response.put("email", user.getEmail());
+                response.put("mobile", user.getMobile());
+                response.put("role", user.getRole());
+                response.put("token", user.getToken());
+                response.put("isFirstTime", user.isFirstTime());
+                response.put("firstTime", user.isFirstTime());
+                response.put("onboardingStatus", user.getOnboardingStatus());
+                response.put("mustResetPassword", user.isMustResetPassword());
+                response.put("subscriptionPlan", user.getSubscriptionPlan());
+                response.put("restaurantId", user.getRestaurantId());
+                response.put("restaurantName", user.getRestaurantName());
+                return ResponseEntity.ok(response);
             }
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build();

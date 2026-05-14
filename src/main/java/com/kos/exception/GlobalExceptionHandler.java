@@ -44,6 +44,21 @@ public class GlobalExceptionHandler {
     }
 
     /* =========================
+       Trial Already Used
+       ========================= */
+    @ExceptionHandler(TrialAlreadyUsedException.class)
+    public ResponseEntity<ErrorResponse> handleTrialAlreadyUsed(
+            TrialAlreadyUsedException ex) {
+
+        ErrorResponse error = new ErrorResponse(
+                ex.getMessage(),
+                HttpStatus.CONFLICT.value()
+        );
+
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    /* =========================
        SSE client disconnect or timeout — swallow silently.
        The response is already committed as text/event-stream;
        writing a body (e.g. ErrorResponse JSON) would throw

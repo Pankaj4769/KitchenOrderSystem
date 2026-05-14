@@ -2,6 +2,7 @@ package com.kos.controller;
 
 import com.kos.dto.CompleteSetup;
 import com.kos.dto.MessageResponse;
+import com.kos.dto.StartTrialRequestDTO;
 import com.kos.dto.SubscriptionRequestDTO;
 import com.kos.dto.SubscriptionResponseDTO;
 import com.kos.dto.UpgradePlan;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/subscription")
@@ -64,5 +66,15 @@ public class SubscriptionController {
     public ResponseEntity<MessageResponse> upgradePlan(@RequestBody UpgradePlan plan){
     	return ResponseEntity.ok(subscriptionService.upgradePlan(plan));
     }
-    
+
+    @PostMapping("/startTrial")
+    public ResponseEntity<SubscriptionResponseDTO> startTrial(@RequestBody StartTrialRequestDTO request) {
+        return ResponseEntity.ok(subscriptionService.startTrial(request));
+    }
+
+    @PostMapping("/completeTrial/{restaurantId}")
+    public ResponseEntity<Map<String, Object>> completeTrial(@PathVariable Long restaurantId) {
+        return ResponseEntity.ok(subscriptionService.completeTrial(restaurantId));
+    }
+
 }
