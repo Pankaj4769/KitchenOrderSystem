@@ -59,6 +59,13 @@ public class SubscriptionService{
 	private int trialDurationDays;
 
     public SubscriptionResponseDTO assignPlan(SubscriptionRequestDTO request) {
+        subscriptionRepository
+            .findByRestaurantIdAndStatusIn(request.getRestaurantId(),
+                List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL))
+            .ifPresent(s -> { throw new RuntimeException(
+                "Restaurant " + request.getRestaurantId() +
+                " already has an active or trial subscription. Use upgrade instead."); });
+
         SubscriptionPlan plan = planRepository.findByPlanName(request.getPlanName())
                 .orElseThrow(() -> new RuntimeException("Plan not found: " + request.getPlanName()));
 
@@ -191,10 +198,16 @@ public class SubscriptionService{
             throw new TrialAlreadyUsedException(restaurantId);
         }
 
-        // Fetch plan
-        SubscriptionPlan plan = planRepository
-            .findByPlanName(PlanType.valueOf(request.getPlanName()))
-            .orElseThrow(() -> new RuntimeException("Unknown plan: " + request.getPlanName()));
+        // Fetch plan or create it using the price/duration the UI passed
+        PlanType planType = PlanType.valueOf(request.getPlanName());
+        SubscriptionPlan plan = planRepository.findByPlanName(planType)
+            .orElseGet(() -> {
+                SubscriptionPlan newPlan = new SubscriptionPlan();
+                newPlan.setPlanName(planType);
+                newPlan.setPrice(request.getPrice());
+                newPlan.setDurationDays(request.getDurationDays() > 0 ? request.getDurationDays() : 30);
+                return planRepository.save(newPlan);
+            });
 
         // Capture payment mandate
         MandateResult mandate = paymentGateway.createMandate(
@@ -214,6 +227,16 @@ public class SubscriptionService{
         sub.setMandateId(mandate.mandateId());
 
         sub = subscriptionRepository.save(sub);
+
+        // Update all AuthUsers for this restaurant to reflect the selected plan
+        com.kos.dto.SubscriptionPlan userPlan =
+            com.kos.dto.SubscriptionPlan.valueOf(plan.getPlanName().name());
+        userRepository.findByRestaurantId(String.valueOf(restaurantId))
+            .ifPresent(users -> users.forEach(u -> {
+                u.setSubscriptionPlan(userPlan);
+                userRepository.save(u);
+            }));
+
         return mapToDTO(sub);
     }
 
