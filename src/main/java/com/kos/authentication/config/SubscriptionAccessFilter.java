@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -25,8 +26,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SubscriptionAccessFilter extends OncePerRequestFilter {
 
-    private final SubscriptionService subscriptionService;
-    private final SubscriptionRepository subscriptionRepository;
+	@Autowired
+    private SubscriptionService subscriptionService;
+	@Autowired
+    private SubscriptionRepository subscriptionRepository;
 
     // Map URI patterns to required features
     private static final Map<String, String> FEATURE_MAP = Map.of(
@@ -46,13 +49,17 @@ public class SubscriptionAccessFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         String restaurantIdHeader = request.getHeader("X-Restaurant-Id");
 
-        // Skip filter for auth, subscription, payment webhook, login, signup endpoints
+        // Skip filter for auth, subscription, payment webhook, login, signup endpoints.
+        // /doPayment is also skipped — it's the recovery endpoint a user with an
+        // EXPIRED subscription or ended trial calls to renew, so blocking it would
+        // make recovery impossible.
         if (uri.startsWith("/api/auth")
                 || uri.startsWith("/api/subscription")
                 || uri.startsWith("/api/payment/webhook")
                 || uri.startsWith("/login")
                 || uri.startsWith("/signup")
-                || uri.startsWith("/auth/")) {
+                || uri.startsWith("/auth/")
+                || uri.equals("/doPayment")) {
             filterChain.doFilter(request, response);
             return;
         }
