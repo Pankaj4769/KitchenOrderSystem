@@ -53,6 +53,9 @@ public class PaymentService {
 	@Autowired
 	OrderRepository orderRepo;
 
+	@Autowired
+	SubscriptionService subscriptionService;
+
 	public PaymentResponse doPayment(PaymentRequest paymentReq) {
 		PaymentResponse paymentResponse = new PaymentResponse();
 		
@@ -79,11 +82,24 @@ public class PaymentService {
 			user.setName(paymentReq.getName());
 			user.setSubscriptionPlan(SubscriptionPlan.valueOf(paymentReq.getPlan()));
 			user.setRestaurantId(rest.get().getRestaurentId().toString());
-			user.setOnboardingStatus(OnboardingStatus.COMPLETED);
+			// Preserve SETUP_COMPLETE for trial-recovery payments; only
+			// new payments should set onboardingStatus to COMPLETED.
+			if (user.getOnboardingStatus() != OnboardingStatus.SETUP_COMPLETE) {
+				user.setOnboardingStatus(OnboardingStatus.COMPLETED);
+			}
 			try {
 				AuthUser savedUser = userRepository.save(user);
 				if(savedUser.getSubscriptionPlan().equals(SubscriptionPlan.valueOf(paymentReq.getPlan()))) {
-				
+
+				// Payment succeeded → activate the subscription row so status
+				// flips to ACTIVE with a fresh expiry based on the chosen plan.
+				try {
+					Long restId = Long.parseLong(savedUser.getRestaurantId());
+					subscriptionService.activateSubscriptionAfterPayment(restId, paymentReq.getPlan());
+				} catch (NumberFormatException ignored) {
+					// non-numeric restaurant id — skip activation, payment still succeeds
+				}
+
 				paymentResponse.setActivePlan(savedUser.getSubscriptionPlan().toString());
 				paymentResponse.setPaymentStatus(true);
 				paymentResponse.setRestaurantId(savedUser.getRestaurantId());

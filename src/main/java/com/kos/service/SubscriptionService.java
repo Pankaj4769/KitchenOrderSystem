@@ -20,6 +20,7 @@ import com.kos.model.SubscriptionPlan.PlanType;
 import com.kos.payment.ChargeResult;
 import com.kos.payment.MandateResult;
 import com.kos.payment.PaymentGatewayPort;
+import com.kos.repository.RestaurentRepository;
 import com.kos.repository.SubscriptionPlanRepository;
 import com.kos.repository.SubscriptionRepository;
 import com.kos.repository.UserRepository;
@@ -47,6 +48,9 @@ public class SubscriptionService{
 
 	@Autowired
 	UserRepository userRepository;
+
+	@Autowired
+	RestaurentRepository restaurentRepository;
 
 	@Autowired
 	UserService userService;
@@ -195,7 +199,10 @@ public class SubscriptionService{
         boolean hasHistory = subscriptionRepository.existsByRestaurantIdAndStatusNot(
             restaurantId, SubscriptionStatus.CANCELLED);
         if (hasHistory) {
-            throw new TrialAlreadyUsedException(restaurantId);
+            String restaurantName = restaurentRepository.findById(restaurantId.intValue())
+                .map(com.kos.dto.Restaurent::getRestaurentName)
+                .orElse(null);
+            throw new TrialAlreadyUsedException(restaurantName, restaurantId);
         }
 
         // Fetch plan or create it using the price/duration the UI passed
@@ -353,6 +360,46 @@ public class SubscriptionService{
     	}
 		return resp;
 
+    }
+
+    /**
+     * Activates the restaurant's subscription after a successful payment:
+     * promotes any TRIAL / ACTIVE / EXPIRED row to ACTIVE, refreshes the
+     * start/expiry dates from the chosen plan's duration, and clears the
+     * trial end date. Called by PaymentService.doPayment.
+     */
+    @Transactional
+    public void activateSubscriptionAfterPayment(Long restaurantId, String planName) {
+        if (restaurantId == null) return;
+
+        Optional<Subscription> subOpt = subscriptionRepository
+            .findByRestaurantIdAndStatusIn(restaurantId,
+                List.of(SubscriptionStatus.TRIAL,
+                        SubscriptionStatus.ACTIVE,
+                        SubscriptionStatus.EXPIRED));
+        if (subOpt.isEmpty()) return;
+
+        Subscription sub = subOpt.get();
+
+        // If the caller passed a different plan, swap it in so the duration
+        // calculation below uses the right plan.
+        if (planName != null && !planName.isBlank()) {
+            try {
+                PlanType planType = PlanType.valueOf(planName);
+                planRepository.findByPlanName(planType).ifPresent(sub::setPlan);
+            } catch (IllegalArgumentException ignored) {
+                // unknown plan name — fall back to existing plan on the row
+            }
+        }
+
+        int days = sub.getPlan() != null ? sub.getPlan().getDurationDays() : 0;
+        if (days <= 0) days = 30;
+
+        sub.setStatus(SubscriptionStatus.ACTIVE);
+        sub.setStartDate(LocalDate.now());
+        sub.setExpiryDate(LocalDate.now().plusDays(days));
+        sub.setTrialEndDate(null);
+        subscriptionRepository.save(sub);
     }
 
     public MessageResponse upgradePlan(UpgradePlan plan) {
