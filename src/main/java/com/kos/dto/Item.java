@@ -23,6 +23,9 @@ public class Item {
 	private Integer itemId;
 	@JsonProperty("name")
 	private String itemName;
+	@JsonProperty("description")
+	@Column(name = "description", length = 1000)
+	private String description;
 	@JsonProperty("image")
 	@Column(name = "item_img_name")
 	private String itemImgName;
@@ -60,6 +63,12 @@ public class Item {
 	}
 	public void setItemName(String itemName) {
 		this.itemName = itemName;
+	}
+	public String getDescription() {
+		return description;
+	}
+	public void setDescription(String description) {
+		this.description = description;
 	}
 	public String getItemImgName() {
 		return itemImgName;
