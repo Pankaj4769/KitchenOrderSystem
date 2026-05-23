@@ -1,16 +1,13 @@
 package com.kos.controller;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,12 +16,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.kos.dto.Item;
 import com.kos.dto.MessageResponse;
 import com.kos.service.InventoryService;
+import com.kos.service.storage.ImageStorageService;
 
 
 @RestController
@@ -32,11 +31,11 @@ public class InventoryController {
 
     private static final Logger logger = LogManager.getLogger(InventoryController.class);
 
-    @Value("${item.image.upload.path}")
-    private String uploadPath;
-
 	@Autowired
 	InventoryService inventoryService;
+
+	@Autowired
+	ImageStorageService imageStorage;
 
 	@GetMapping("/health")
 	public ResponseEntity<String> getHealth() {
@@ -133,10 +132,9 @@ public class InventoryController {
 	}
 
     /**
-     * POST /uploadItemImage
-     * Accepts a multipart image, renames it to sanitized(itemName).ext,
-     * saves it to assets/{restaurantId}/, and returns the filename.
-     * Frontend stores only the filename in the DB.
+     * Legacy: standalone image upload (kept for backward compatibility).
+     * New callers should prefer /addItemWithImage or /updateItemWithImage,
+     * which are atomic with the item row save.
      */
     @PostMapping("/uploadItemImage")
     public ResponseEntity<Map<String, String>> uploadItemImage(
@@ -144,32 +142,48 @@ public class InventoryController {
             @RequestParam("itemName") String itemName,
             @RequestParam("restaurantId") String restaurantId) {
         logger.info("Entering uploadItemImage() with restaurantId={}", restaurantId);
+        String key = imageStorage.store(image, restaurantId, itemName);
+        logger.info("Exiting uploadItemImage()");
+        return ResponseEntity.ok(Map.of("fileName", key));
+    }
+
+    /**
+     * Combined atomic add: persists the item row and writes its image inside
+     * one transaction. The `item` part is the JSON body that /addItem accepts;
+     * the `image` part is optional. Use multipart/form-data.
+     */
+    @PostMapping(path = "/addItemWithImage", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Item> addItemWithImage(
+            @RequestPart("item") Item item,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        logger.info("Entering addItemWithImage()");
         try {
-            // Derive filename: strip everything except letters/digits, append extension
-            String baseName = itemName.trim().replaceAll("[^a-zA-Z0-9]", "");
-            if (baseName.isEmpty()) baseName = "item";
+            Item saved = inventoryService.addItemWithImage(item, image);
+            logger.info("Exiting addItemWithImage()");
+            return ResponseEntity.ok(saved);
+        } catch (RuntimeException e) {
+            logger.error("Error in addItemWithImage(): {}", e.getMessage(), e);
+            throw e;
+        }
+    }
 
-            String original = image.getOriginalFilename();
-            String ext = "jpg";
-            if (original != null && original.contains(".")) {
-                ext = original.substring(original.lastIndexOf('.') + 1).toLowerCase();
-            }
-            String fileName = baseName + "." + ext;
-
-            // Ensure target directory exists
-            Path dir = Paths.get(uploadPath, restaurantId);
-            Files.createDirectories(dir);
-
-            // Write file (overwrites any existing file with same name)
-            Path dest = dir.resolve(fileName);
-            image.transferTo(dest.toFile());
-
-            logger.info("Exiting uploadItemImage()");
-            return ResponseEntity.ok(Map.of("fileName", fileName));
-        } catch (Exception e) {
-            logger.error("Error in uploadItemImage(): {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Upload failed: " + e.getMessage()));
+    /**
+     * Combined atomic update: applies field changes and optionally replaces
+     * the image inside one transaction. Old image (if any and replaced) is
+     * deleted after the row save succeeds.
+     */
+    @PatchMapping(path = "/updateItemWithImage", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Item> updateItemWithImage(
+            @RequestPart("item") Item item,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        logger.info("Entering updateItemWithImage()");
+        try {
+            Item saved = inventoryService.updateItemWithImage(item, image);
+            logger.info("Exiting updateItemWithImage()");
+            return ResponseEntity.ok(saved);
+        } catch (RuntimeException e) {
+            logger.error("Error in updateItemWithImage(): {}", e.getMessage(), e);
+            throw e;
         }
     }
 
