@@ -4,6 +4,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Uploaded item images — local dev only; never commit
+uploads/
+
 ### STS ###
 .apt_generated
 .classpath
