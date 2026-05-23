@@ -6,6 +6,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -28,54 +30,106 @@ import com.kos.service.InventoryService;
 @RestController
 public class InventoryController {
 
+    private static final Logger logger = LogManager.getLogger(InventoryController.class);
+
     @Value("${item.image.upload.path}")
     private String uploadPath;
 
 	@Autowired
 	InventoryService inventoryService;
-	
+
 	@GetMapping("/health")
 	public ResponseEntity<String> getHealth() {
-		return new ResponseEntity<String>("Ok health",HttpStatus.OK);
+		logger.info("Entering getHealth()");
+		try {
+			ResponseEntity<String> result = new ResponseEntity<String>("Ok health",HttpStatus.OK);
+			logger.info("Exiting getHealth()");
+			return result;
+		} catch (RuntimeException e) {
+			logger.error("Error in getHealth(): {}", e.getMessage(), e);
+			throw e;
+		}
 	}
-	
+
 	@PostMapping("/addItem")
 	public ResponseEntity<Item> addItem(@RequestBody Item item){
-		
-		return new ResponseEntity<Item>(inventoryService.addItem(item), HttpStatus.OK);
-		
+		logger.info("Entering addItem()");
+		try {
+			ResponseEntity<Item> result = new ResponseEntity<Item>(inventoryService.addItem(item), HttpStatus.OK);
+			logger.info("Exiting addItem()");
+			return result;
+		} catch (RuntimeException e) {
+			logger.error("Error in addItem(): {}", e.getMessage(), e);
+			throw e;
+		}
 	}
 	@PatchMapping("/restockItem")
 	public ResponseEntity<Item> restockItem(@RequestBody Item item){
-		
-		return new ResponseEntity<Item>(inventoryService.restockItem(item), HttpStatus.OK);
-		
+		logger.info("Entering restockItem()");
+		try {
+			ResponseEntity<Item> result = new ResponseEntity<Item>(inventoryService.restockItem(item), HttpStatus.OK);
+			logger.info("Exiting restockItem()");
+			return result;
+		} catch (RuntimeException e) {
+			logger.error("Error in restockItem(): {}", e.getMessage(), e);
+			throw e;
+		}
 	}
-	
+
 	// ✅ Update Item (name, price, category, status)
     @PatchMapping("/updateItem")
     public ResponseEntity<Item> updateItem(@RequestBody Item item) {
-        return new ResponseEntity<Item>(inventoryService.updateItem(item), HttpStatus.OK);
+        logger.info("Entering updateItem()");
+        try {
+            ResponseEntity<Item> result = new ResponseEntity<Item>(inventoryService.updateItem(item), HttpStatus.OK);
+            logger.info("Exiting updateItem()");
+            return result;
+        } catch (RuntimeException e) {
+            logger.error("Error in updateItem(): {}", e.getMessage(), e);
+            throw e;
+        }
     }
-	
-	
 
-	
+
+
+
 	@GetMapping("/getAllItems/{restId}")
 	public ResponseEntity<List<Item>> getAllItems(@PathVariable String restId){
-		return new ResponseEntity<List<Item>>(inventoryService.getAllItems(restId), HttpStatus.OK);
+		logger.info("Entering getAllItems() with restId={}", restId);
+		try {
+			ResponseEntity<List<Item>> result = new ResponseEntity<List<Item>>(inventoryService.getAllItems(restId), HttpStatus.OK);
+			logger.info("Exiting getAllItems()");
+			return result;
+		} catch (RuntimeException e) {
+			logger.error("Error in getAllItems(): {}", e.getMessage(), e);
+			throw e;
+		}
 	}
-	
+
 	@DeleteMapping("/deleteItemById/{id}")
 	public ResponseEntity<MessageResponse> deleteItemById(@PathVariable String id){
-		return new ResponseEntity<MessageResponse>(inventoryService.deleteItemById(id), HttpStatus.OK);
+		logger.info("Entering deleteItemById() with id={}", id);
+		try {
+			ResponseEntity<MessageResponse> result = new ResponseEntity<MessageResponse>(inventoryService.deleteItemById(id), HttpStatus.OK);
+			logger.info("Exiting deleteItemById()");
+			return result;
+		} catch (RuntimeException e) {
+			logger.error("Error in deleteItemById(): {}", e.getMessage(), e);
+			throw e;
+		}
 	}
-	
+
 	@PatchMapping("/updateItemStatus/{itemId}/{status}")
 	public ResponseEntity<Item> updateItemStatus(@PathVariable String itemId, @PathVariable String status){
-
-		return new ResponseEntity<Item>(inventoryService.updateItemStatus(Integer.parseInt(itemId), Boolean.parseBoolean(status)), HttpStatus.OK);
-
+		logger.info("Entering updateItemStatus() with itemId={}", itemId);
+		try {
+			ResponseEntity<Item> result = new ResponseEntity<Item>(inventoryService.updateItemStatus(Integer.parseInt(itemId), Boolean.parseBoolean(status)), HttpStatus.OK);
+			logger.info("Exiting updateItemStatus()");
+			return result;
+		} catch (RuntimeException e) {
+			logger.error("Error in updateItemStatus(): {}", e.getMessage(), e);
+			throw e;
+		}
 	}
 
     /**
@@ -89,6 +143,7 @@ public class InventoryController {
             @RequestParam("image") MultipartFile image,
             @RequestParam("itemName") String itemName,
             @RequestParam("restaurantId") String restaurantId) {
+        logger.info("Entering uploadItemImage() with restaurantId={}", restaurantId);
         try {
             // Derive filename: strip everything except letters/digits, append extension
             String baseName = itemName.trim().replaceAll("[^a-zA-Z0-9]", "");
@@ -109,8 +164,10 @@ public class InventoryController {
             Path dest = dir.resolve(fileName);
             image.transferTo(dest.toFile());
 
+            logger.info("Exiting uploadItemImage()");
             return ResponseEntity.ok(Map.of("fileName", fileName));
         } catch (Exception e) {
+            logger.error("Error in uploadItemImage(): {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Upload failed: " + e.getMessage()));
         }
