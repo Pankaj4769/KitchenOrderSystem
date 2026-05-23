@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,10 +20,20 @@ import com.kos.dto.OrderItem;
 @Service
 public class BillingServiceImpl implements BillingService {
 
+	private static final Logger logger = LogManager.getLogger(BillingServiceImpl.class);
+
 	@Override
 	public Bill generateBill(Integer orderId) {
-		// TODO Auto-generated method stub
-		return null;
+		logger.info("Entering generateBill() with orderId={}", orderId);
+		try {
+			// TODO Auto-generated method stub
+			Bill result = null;
+			logger.info("Exiting generateBill()");
+			return result;
+		} catch (RuntimeException e) {
+			logger.error("Error in generateBill(): {}", e.getMessage(), e);
+			throw e;
+		}
 	}
 
 //    @Autowired
