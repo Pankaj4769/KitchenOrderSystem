@@ -15,12 +15,15 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.kos.dto.Item;
 import com.kos.dto.ItemCategory;
 import com.kos.dto.MessageResponse;
 import com.kos.repository.InventoryRepository;
+import com.kos.service.storage.ImageStorageService;
 import com.kos.validation.InventoryValidator;
 import com.kos.repository.ItemCategoryRepository;
 
@@ -34,6 +37,9 @@ public class InventoryService {
 
 	@Autowired
 	ItemCategoryRepository itemCategoryRepository;
+
+	@Autowired
+	ImageStorageService imageStorage;
 
 	private String saveImage(String base64Image, String restaurantId) {
 	    logger.info("Entering saveImage()");
@@ -263,6 +269,94 @@ public class InventoryService {
 			logger.error("Error in updateItem(): {}", e.getMessage(), e);
 			throw e;
 		}
+	}
+
+	/**
+	 * Atomic add: saves the Item row and (if provided) writes the image file
+	 * inside one transaction. If either step fails, the Item row is rolled
+	 * back so no orphan DB record exists. (The small window where commit fails
+	 * after disk write would still leave a file behind — accepted; cleanable.)
+	 */
+	@Transactional
+	public Item addItemWithImage(Item item, @Nullable MultipartFile image) {
+		logger.info("Entering addItemWithImage()");
+		InventoryValidator.validateQuantity(item);
+		item.setItem_status(true);
+
+		Item saved = inventoryRepository.saveAndFlush(item);
+		if (saved.getItemId() == null) {
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to persist item");
+		}
+
+		if (image != null && !image.isEmpty()) {
+			String key = imageStorage.store(image, item.getRestaurantId(), item.getItemName());
+			saved.setItemImgName(key);
+			saved = inventoryRepository.saveAndFlush(saved);
+		}
+
+		if (item.getCategories() != null) {
+			for (String category : item.getCategories()) {
+				ItemCategory itemCategory = new ItemCategory();
+				itemCategory.setCategoryType(category);
+				itemCategory.setItemId(saved.getItemId());
+				itemCategoryRepository.save(itemCategory);
+			}
+		}
+
+		logger.info("Exiting addItemWithImage()");
+		return saved;
+	}
+
+	/**
+	 * Atomic update: applies field changes and (if a new image is provided)
+	 * stores it and deletes the old one. Old-image deletion runs only after
+	 * the row update succeeds; if the DB save throws, the new file is left
+	 * behind but no DB inconsistency results.
+	 */
+	@Transactional
+	public Item updateItemWithImage(Item item, @Nullable MultipartFile image) {
+		logger.info("Entering updateItemWithImage()");
+		if (item.getItemId() == null) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "itemId is required");
+		}
+
+		Item existing = inventoryRepository.findById(item.getItemId())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Item with ID " + item.getItemId() + " not found"));
+
+		existing.setItemName(item.getItemName());
+		existing.setItemPrice(item.getItemPrice());
+		existing.setItem_status(item.getItem_status());
+		existing.setItemQuantity(item.getItemQuantity());
+		existing.setItemType(item.getItemType());
+		existing.setFromTime(item.getFromTime());
+		existing.setToTime(item.getToTime());
+
+		String oldKey = existing.getItemImgName();
+		if (image != null && !image.isEmpty()) {
+			String newKey = imageStorage.store(image, existing.getRestaurantId(), item.getItemName());
+			existing.setItemImgName(newKey);
+		}
+
+		itemCategoryRepository.deleteCategoryByItemId(existing.getItemId());
+		if (item.getCategories() != null) {
+			for (String category : item.getCategories()) {
+				ItemCategory itemCategory = new ItemCategory();
+				itemCategory.setItemId(existing.getItemId());
+				itemCategory.setCategoryType(category);
+				itemCategoryRepository.save(itemCategory);
+			}
+		}
+
+		Item result = inventoryRepository.save(existing);
+
+		// Best-effort cleanup of the old image after a successful field update.
+		if (image != null && !image.isEmpty() && oldKey != null && !oldKey.equals(result.getItemImgName())) {
+			imageStorage.delete(oldKey);
+		}
+
+		logger.info("Exiting updateItemWithImage()");
+		return result;
 	}
 
 }
