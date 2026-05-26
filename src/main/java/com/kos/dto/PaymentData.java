@@ -49,6 +49,20 @@ public class PaymentData {
     @Column(name = "restaurant_id", nullable = false)
     private String restaurantId;
 
+    // ── Order context (NOT persisted to payment_data). Used by saveOrder()
+    //    to populate the kos_orders row with the values shown on the popup. ──
+    @Transient
+    private String orderNumber;
+
+    @Transient
+    private String orderType;
+
+    @Transient
+    private String waiterName;
+
+    @Transient
+    private Double totalAmount;
+
     // Constructors
     public PaymentData() {
     }
@@ -155,5 +169,37 @@ public class PaymentData {
 
     public void setRestaurantId(String restaurantId) {
         this.restaurantId = restaurantId;
+    }
+
+    public String getOrderNumber() {
+        return orderNumber;
+    }
+
+    public void setOrderNumber(String orderNumber) {
+        this.orderNumber = orderNumber;
+    }
+
+    public String getOrderType() {
+        return orderType;
+    }
+
+    public void setOrderType(String orderType) {
+        this.orderType = orderType;
+    }
+
+    public String getWaiterName() {
+        return waiterName;
+    }
+
+    public void setWaiterName(String waiterName) {
+        this.waiterName = waiterName;
+    }
+
+    public Double getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(Double totalAmount) {
+        this.totalAmount = totalAmount;
     }
 }

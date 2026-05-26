@@ -199,7 +199,11 @@ public class PaymentService {
 	    	List<OrderItem> ordList = new ArrayList<OrderItem>();
 	    	ord.setKotRound(null);
 	    	ord.setNotes(null);
-	    	ord.setOrderNumber("ORD-"+System.currentTimeMillis());
+	    	ord.setOrderNumber(
+	    		paymentData.getOrderNumber() != null && !paymentData.getOrderNumber().isBlank()
+	    			? paymentData.getOrderNumber()
+	    			: "ORD-" + System.currentTimeMillis()
+	    	);
 	    	ord.setOrderTime(LocalDateTime.now());
 	    	ord.setPaymentDate(LocalDateTime.now());
 	    	ord.setPaymentStatus("PAID");
@@ -207,9 +211,20 @@ public class PaymentService {
 	    	ord.setPriority("MEDIUM");
 	    	ord.setRestaurantId(paymentData.getRestaurantId());
 	    	ord.setSessionId(null);
-	    	ord.setStatus("PAID");
+	    	ord.setStatus("SERVED");
 	    	ord.setTableId(null);
 	    	ord.setTableName(null);
+	    	ord.setType(
+	    		paymentData.getOrderType() != null && !paymentData.getOrderType().isBlank()
+	    			? paymentData.getOrderType()
+	    			: "DINE_IN"
+	    	);
+	    	ord.setWaiterName(paymentData.getWaiterName());
+	    	ord.setTotalAmount(
+	    		paymentData.getTotalAmount() != null
+	    			? paymentData.getTotalAmount()
+	    			: paymentData.getAmount()
+	    	);
 	    	for(CartItem i: paymentData.getItems()) {
 	    		OrderItem itm = new OrderItem();
 	    		itm.setId(null);
