@@ -157,6 +157,27 @@ public class AuthController {
     }
 
     /**
+     * GET /auth/getUserByMobile/{mobile}
+     * Returns 200 with user if a user with the given mobile exists, 404 otherwise.
+     * Used by the signup form to warn the user that the mobile is already taken
+     * before they waste an OTP on a duplicate signup.
+     */
+    @GetMapping("/getUserByMobile/{mobile}")
+    public ResponseEntity<AuthUser> getUserByMobile(@PathVariable String mobile) {
+        logger.info("Entering getUserByMobile()");
+        try {
+            Optional<AuthUser> user = userService.getUserByIdentifier(mobile, "mobile");
+            ResponseEntity<AuthUser> result = user.map(ResponseEntity::ok)
+                       .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+            logger.info("Exiting getUserByMobile()");
+            return result;
+        } catch (RuntimeException e) {
+            logger.error("Error in getUserByMobile(): {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    /**
      * GET /auth/staff/{restaurantId}
      * Returns all staff members registered under the given restaurant.
      * Used by the POS waiter selection popup to list available waiters.
