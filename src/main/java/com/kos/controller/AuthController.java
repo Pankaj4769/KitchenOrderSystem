@@ -48,6 +48,9 @@ public class AuthController {
     @Autowired
     OtpService otpService;
 
+    @Autowired
+    private com.kos.service.ProfileService profileService;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         logger.info("Entering login()");
@@ -218,6 +221,55 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/loginWithOtp")
+    public ResponseEntity<?> loginWithOtp(@RequestBody Map<String, String> body) {
+        logger.info("Entering loginWithOtp()");
+        try {
+            String mobile = body.get("mobile");
+            String otp    = body.get("otp");
+            if (mobile == null || mobile.isBlank() || otp == null || otp.isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new MessageResponse("mobile and otp are required", false));
+            }
+            boolean valid = otpService.verifyOtp(mobile, "mobile", otp);
+            if (!valid) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new MessageResponse("Invalid or expired OTP", false));
+            }
+            Optional<AuthUser> userOpt = userService.getUserByIdentifier(mobile, "mobile");
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new MessageResponse("No account found for this mobile number", false));
+            }
+            AuthUser user = userOpt.get();
+
+            // Mirror /auth/login's non-owner gate
+            if (user.getRole() != com.kos.dto.UserRole.OWNER) {
+                String restaurantId = user.getRestaurantId();
+                if (restaurantId == null || restaurantId.isBlank()) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(new MessageResponse("Your account is not linked to a restaurant. Contact your owner.", false));
+                }
+                Optional<AuthUser> ownerOpt = userService.getOwnerByRestaurantId(restaurantId);
+                boolean ownerReady = ownerOpt
+                        .map(o -> o.getOnboardingStatus() == com.kos.dto.OnboardingStatus.SETUP_COMPLETE)
+                        .orElse(false);
+                if (!ownerReady) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(new MessageResponse("Restaurant setup is not complete. Please contact your owner.", false));
+                }
+            }
+
+            String token = jwtUtil.generateToken(user.getUsername());
+            user.setToken(token);
+            logger.info("Exiting loginWithOtp()");
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            logger.error("Error in loginWithOtp(): {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
     @PostMapping("/google")
     public ResponseEntity<AuthUser> googleLogin(@RequestBody Map<String, String> body) {
         logger.info("Entering googleLogin()");
@@ -296,6 +348,49 @@ public class AuthController {
         } catch (RuntimeException e) {
             logger.error("Error in forgotPassword(): {}", e.getMessage(), e);
             throw e;
+        }
+    }
+
+    // ── Profile settings (authenticated owner) ─────────────────
+
+    @GetMapping("/profile/settings")
+    public ResponseEntity<?> getProfileSettings(java.security.Principal principal) {
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            return ResponseEntity.ok(profileService.getSettings(principal.getName()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new MessageResponse(e.getMessage(), false));
+        }
+    }
+
+    @PutMapping("/profile/contact")
+    public ResponseEntity<?> updateContact(
+            @RequestBody com.kos.dto.UpdateContactRequest req,
+            java.security.Principal principal) {
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            profileService.updateContact(principal.getName(), req);
+            return ResponseEntity.ok(new MessageResponse("Contact updated", true));
+        } catch (com.kos.service.ProfileService.VerificationRequiredException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new MessageResponse(e.getMessage(), false));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new MessageResponse(e.getMessage(), false));
+        }
+    }
+
+    @PutMapping("/profile/restaurant")
+    public ResponseEntity<?> updateRestaurant(
+            @RequestBody com.kos.dto.UpdateRestaurantRequest req,
+            java.security.Principal principal) {
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            return ResponseEntity.ok(profileService.updateRestaurant(principal.getName(), req));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new MessageResponse(e.getMessage(), false));
         }
     }
 }
