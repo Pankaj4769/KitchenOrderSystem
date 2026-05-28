@@ -3,7 +3,6 @@ package com.kos.service;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
@@ -20,7 +19,8 @@ public class OtpService {
 
     private static final Logger logger = LogManager.getLogger(OtpService.class);
 
-    private static final long OTP_VALIDITY_SECONDS = 300; // 5 minutes
+    private static final long OTP_VALIDITY_SECONDS = 300;          // 5 min
+    private static final long VERIFIED_TTL_SECONDS  = 600;          // 10 min
 
     private static class OtpEntry {
         final String otp;
@@ -35,37 +35,36 @@ public class OtpService {
     // key: "identifierType:identifier"
     private final Map<String, OtpEntry> store = new ConcurrentHashMap<>();
 
-    @Autowired
-    private JavaMailSender mailSender;
+    // outer key: username (JWT subject). inner key: lowercased identifier. value: verified-at instant.
+    private final Map<String, Map<String, Instant>> verifiedRecently = new ConcurrentHashMap<>();
 
-    @Autowired
-    private UserService userService;
+    @Autowired private JavaMailSender mailSender;
+    @Autowired private UserService userService;
+    @Autowired(required = false) private SmsOtpService smsOtpService;
 
     public boolean sendOtp(String identifier, String identifierType) {
-        logger.info("Entering sendOtp()");
+        logger.info("Entering sendOtp() type={} id={}", identifierType, identifier);
         try {
-            String email;
+            String otp = "123456"; // dev convention (see KOS auth.service notes)
+            store.put(key(identifierType, identifier), new OtpEntry(otp));
 
-            Optional<AuthUser> optUser = userService.getUserByIdentifier(identifier, identifierType);
-            if (optUser.isPresent()) {
-                // Existing user (forgot password flow) — use their registered email
-                email = optUser.get().getEmail();
-                if (email == null || email.isBlank()) {
-                    logger.info("Exiting sendOtp()");
-                    return false;
-                }
-            } else if ("email".equalsIgnoreCase(identifierType)) {
-                // No user found but identifier is an email — allow signup flow
-                email = identifier.trim();
-            } else {
-                // username/mobile with no matching user — reject
-                logger.info("Exiting sendOtp()");
-                return false;
+            if ("mobile".equalsIgnoreCase(identifierType)) {
+                boolean ok = smsOtpService != null && smsOtpService.sendOtp(identifier, otp);
+                if (!ok) store.remove(key(identifierType, identifier));
+                return ok;
             }
 
-            //String otp = String.format("%06d", new Random().nextInt(1_000_000));
-            String otp = "123456";
-            store.put(key(identifierType, identifier), new OtpEntry(otp));
+            // email or username → resolve recipient email
+            String email;
+            Optional<AuthUser> optUser = userService.getUserByIdentifier(identifier, identifierType);
+            if (optUser.isPresent()) {
+                email = optUser.get().getEmail();
+                if (email == null || email.isBlank()) { return false; }
+            } else if ("email".equalsIgnoreCase(identifierType)) {
+                email = identifier.trim();
+            } else {
+                return false;
+            }
 
             try {
                 SimpleMailMessage msg = new SimpleMailMessage();
@@ -74,17 +73,14 @@ public class OtpService {
                 msg.setSubject("KOS - OTP Verification");
                 msg.setText("Your OTP is: " + otp + "\n\nThis OTP is valid for 5 minutes.");
                 mailSender.send(msg);
-                logger.info("Exiting sendOtp()");
                 return true;
             } catch (Exception e) {
                 logger.error("Failed to send OTP email: {}", e.getMessage(), e);
                 store.remove(key(identifierType, identifier));
-                logger.info("Exiting sendOtp()");
                 return false;
             }
-        } catch (RuntimeException e) {
-            logger.error("Error in sendOtp(): {}", e.getMessage(), e);
-            throw e;
+        } finally {
+            logger.info("Exiting sendOtp()");
         }
     }
 
@@ -92,21 +88,41 @@ public class OtpService {
         logger.info("Entering verifyOtp()");
         try {
             OtpEntry entry = store.get(key(identifierType, identifier));
-            if (entry == null || entry.isExpired()) {
-                logger.info("Exiting verifyOtp()");
-                return false;
-            }
-            if (!entry.otp.equals(otp.trim())) {
-                logger.info("Exiting verifyOtp()");
-                return false;
-            }
-            store.remove(key(identifierType, identifier)); // consume OTP
-            logger.info("Exiting verifyOtp()");
+            if (entry == null || entry.isExpired())          return false;
+            if (!entry.otp.equals(otp.trim()))               return false;
+            store.remove(key(identifierType, identifier));   // consume
             return true;
-        } catch (RuntimeException e) {
-            logger.error("Error in verifyOtp(): {}", e.getMessage(), e);
-            throw e;
+        } finally {
+            logger.info("Exiting verifyOtp()");
         }
+    }
+
+    // ── Verified-recently tracking ─────────────────────────────────────────────
+
+    public void markVerified(String username, String identifier) {
+        if (username == null || identifier == null) return;
+        verifiedRecently
+            .computeIfAbsent(username, k -> new ConcurrentHashMap<>())
+            .put(identifier.trim().toLowerCase(), Instant.now());
+    }
+
+    public boolean wasRecentlyVerified(String username, String identifier) {
+        if (username == null || identifier == null) return false;
+        Map<String, Instant> map = verifiedRecently.get(username);
+        if (map == null) return false;
+        Instant at = map.get(identifier.trim().toLowerCase());
+        if (at == null) return false;
+        if (Instant.now().isAfter(at.plusSeconds(VERIFIED_TTL_SECONDS))) {
+            map.remove(identifier.trim().toLowerCase());
+            return false;
+        }
+        return true;
+    }
+
+    public void clearVerification(String username, String identifier) {
+        if (username == null || identifier == null) return;
+        Map<String, Instant> map = verifiedRecently.get(username);
+        if (map != null) map.remove(identifier.trim().toLowerCase());
     }
 
     private String key(String identifierType, String identifier) {
