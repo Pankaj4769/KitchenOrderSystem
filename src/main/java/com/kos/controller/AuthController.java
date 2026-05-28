@@ -255,15 +255,25 @@ public class AuthController {
     }
 
     @PostMapping("/verifyOtp")
-    public ResponseEntity<MessageResponse> verifyOtp(@RequestBody OtpVerifyRequest request) {
+    public ResponseEntity<MessageResponse> verifyOtp(
+            @RequestBody OtpVerifyRequest request,
+            java.security.Principal principal) {
         logger.info("Entering verifyOtp()");
         try {
-            boolean valid = otpService.verifyOtp(request.getIdentifier(), request.getIdentifierType(), request.getOtp());
-            logger.info("Exiting verifyOtp()");
+            boolean valid = otpService.verifyOtp(
+                request.getIdentifier(),
+                request.getIdentifierType(),
+                request.getOtp()
+            );
+            if (valid && principal != null && principal.getName() != null) {
+                otpService.markVerified(principal.getName(), request.getIdentifier());
+            }
             return ResponseEntity.ok(new MessageResponse(valid ? "success" : "Invalid or expired OTP", valid));
         } catch (RuntimeException e) {
             logger.error("Error in verifyOtp(): {}", e.getMessage(), e);
             throw e;
+        } finally {
+            logger.info("Exiting verifyOtp()");
         }
     }
 
