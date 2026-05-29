@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kos.admin.AdminTenantStatusReadOnly;
+import com.kos.admin.AdminTenantStatusReadOnlyRepository;
 import com.kos.authentication.JwtUtil;
 import com.kos.dto.AuthResponse;
 import com.kos.dto.AuthUser;
@@ -48,6 +50,35 @@ public class AuthController {
     @Autowired
     OtpService otpService;
 
+    @Autowired
+    AdminTenantStatusReadOnlyRepository adminTenantStatusRepo;
+
+    /**
+     * Returns a 403 ResponseEntity if the user's tenant is suspended in the
+     * admin panel; null otherwise. Owners and staff alike are blocked when
+     * the tenant they belong to is suspended.
+     *
+     * Null/blank/non-numeric restaurantId is treated as "not suspended"
+     * (e.g. platform users without a tenant yet).
+     */
+    private ResponseEntity<?> tenantSuspensionResponseOrNull(String restaurantId) {
+        if (restaurantId == null || restaurantId.isBlank()) return null;
+        Integer tenantId;
+        try {
+            tenantId = Integer.valueOf(restaurantId.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        Optional<AdminTenantStatusReadOnly> row = adminTenantStatusRepo.findByTenantId(tenantId);
+        if (row.isPresent() && "SUSPENDED".equalsIgnoreCase(row.get().getStatus())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new MessageResponse(
+                            "Your restaurant has been suspended. Please contact support.",
+                            false));
+        }
+        return null;
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         logger.info("Entering login()");
@@ -57,6 +88,13 @@ public class AuthController {
                 AuthUser authUser = userService.getUserRoles(request.getUsername());
                 if (user.getUsername() != null && request.getPassword().equals(user.getPassword())
                         && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
+
+                    // Admin-panel suspension check (applies to owner + staff).
+                    ResponseEntity<?> suspended = tenantSuspensionResponseOrNull(user.getRestaurantId());
+                    if (suspended != null) {
+                        logger.info("Exiting login() — tenant suspended");
+                        return suspended;
+                    }
 
                     // Staff-only restriction: owner must have completed setup
                     com.kos.dto.UserRole role = authUser.getRole();
@@ -250,6 +288,14 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
             }
             AuthUser user  = userService.findOrCreateByGoogle(email, name);
+
+            // Admin-panel suspension check (Google path).
+            ResponseEntity<?> suspended = tenantSuspensionResponseOrNull(user.getRestaurantId());
+            if (suspended != null) {
+                logger.info("Exiting googleLogin() — tenant suspended");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
             String   token = jwtUtil.generateToken(user.getUsername());
             user.setToken(token);
             logger.info("Exiting googleLogin()");
