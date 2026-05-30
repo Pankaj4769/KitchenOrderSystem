@@ -52,6 +52,8 @@ public class AuthController {
 
     @Autowired
     private com.kos.service.ProfileService profileService;
+    
+    @Autowired
     AdminTenantStatusReadOnlyRepository adminTenantStatusRepo;
 
     /**
