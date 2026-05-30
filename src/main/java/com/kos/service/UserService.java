@@ -14,6 +14,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import com.kos.authentication.PasswordUtil.PasswordHelper;
 import com.kos.dto.AuthUser;
 import com.kos.dto.OnboardingStatus;
 import com.kos.dto.Restaurent;
@@ -47,6 +48,9 @@ public class UserService {
 	@Autowired
 	@Nullable
 	private JavaMailSender mailSender;
+
+	@Autowired
+	PasswordHelper passwordHelper;
 
 
 	public AuthUser getUserRoles(String username) {
@@ -139,6 +143,17 @@ public class UserService {
 		}
 	}
 
+	public void rehashPassword(AuthUser user, String hashedFromClient) {
+		logger.info("Entering rehashPassword() — migrating legacy password for {}", user.getUsername());
+		try {
+			user.setPassword(passwordHelper.encode(hashedFromClient));
+			userRepository.save(user);
+			logger.info("Exiting rehashPassword()");
+		} catch (RuntimeException e) {
+			logger.error("Error in rehashPassword(): {}", e.getMessage(), e);
+		}
+	}
+
 	public boolean updatePassword(AuthUser user) {
 		logger.info("Entering updatePassword()");
 		try {
@@ -196,7 +211,8 @@ public class UserService {
 			String tempPassword = (request.getPassword() == null || request.getPassword().isBlank())
 					? generateTempPassword()
 					: request.getPassword();
-			request.setPassword(tempPassword);
+			// DB stores BCrypt(SHA-256(tempPassword)) so it matches what the UI sends on login
+			request.setPassword(passwordHelper.encode(passwordHelper.sha256(tempPassword)));
 			request.setFirstTime(false);
 			request.setMustResetPassword(true);
 
@@ -241,7 +257,7 @@ public class UserService {
 			}
 			AuthUser user = optUser.get();
 			String tempPassword = generateTempPassword();
-			user.setPassword(tempPassword);
+			user.setPassword(passwordHelper.encode(passwordHelper.sha256(tempPassword)));
 			user.setMustResetPassword(true);
 			userRepository.save(user);
 			boolean result = sendStaffCredentials(user.getEmail(), user.getName(), user.getUsername(), tempPassword);
@@ -262,7 +278,7 @@ public class UserService {
 				return Optional.empty();
 			}
 			AuthUser user = optUser.get();
-			user.setPassword(newPassword);
+			user.setPassword(passwordHelper.encode(newPassword));
 			user.setMustResetPassword(false);
 			Optional<AuthUser> result = Optional.of(userRepository.save(user));
 			logger.info("Exiting resetTempPassword()");
@@ -354,7 +370,7 @@ public class UserService {
 					authUser.setRestaurantId(rest.getRestaurentId().toString());
 					authUser.setRole(UserRole.OWNER);
 					authUser.setUsername(form.getUsername());
-					authUser.setPassword(form.getPassword());
+					authUser.setPassword(passwordHelper.encode(form.getPassword()));
 					AuthUser u = userRepository.save(authUser);
 					if(u.getStaffId() != null) {
 						response.setMessage("success");
