@@ -92,10 +92,11 @@ public class AuthController {
         try {
             if (request != null) {
                 AuthUser user = userService.getUser(request.getUsername());
-                AuthUser authUser = userService.getUserRoles(request.getUsername());
                 if (user.getUsername() != null
                         && passwordHelper.matches(request.getPassword(), user.getPassword())
-                        && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
+                        && user.getRole() != null
+                        && request.getRole() != null
+                        && request.getRole().equalsIgnoreCase(user.getRole().toString())) {
 
                     if (!passwordHelper.isBcrypt(user.getPassword())) {
                         userService.rehashPassword(user, request.getPassword());
@@ -109,7 +110,7 @@ public class AuthController {
                     }
 
                     // Staff-only restriction: owner must have completed setup
-                    com.kos.dto.UserRole role = authUser.getRole();
+                    com.kos.dto.UserRole role = user.getRole();
                     if (role != com.kos.dto.UserRole.OWNER) {
                         String restaurantId = user.getRestaurantId();
                         if (restaurantId == null || restaurantId.isBlank()) {

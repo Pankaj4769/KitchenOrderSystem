@@ -3,20 +3,35 @@ package com.kos.authentication;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    private final String SECRET = "abhishekganduhai4566777@#$%^@#$%ASDFV";
-  
+    @Value("${app.jwt.secret:}")
+    private String secret;
 
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
+    private Key signingKey;
+
+    @PostConstruct
+    void init() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                "JWT secret is not configured. Set the JWT_SECRET environment variable " +
+                "(or the app.jwt.secret property). HS256 requires at least 32 bytes.");
+        }
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < 32) {
+            throw new IllegalStateException(
+                "JWT secret must be at least 32 bytes for HS256. Provided length: " + bytes.length);
+        }
+        this.signingKey = Keys.hmacShaKeyFor(bytes);
     }
 
     public String generateToken(String username) {
@@ -24,13 +39,13 @@ public class JwtUtil {
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60)) // 1 hour
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public String extractUsername(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+                .setSigningKey(signingKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
@@ -40,7 +55,7 @@ public class JwtUtil {
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
+                    .setSigningKey(signingKey)
                     .build()
                     .parseClaimsJws(token);
             return true;
@@ -49,4 +64,3 @@ public class JwtUtil {
         }
     }
 }
-
