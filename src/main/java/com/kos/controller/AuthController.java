@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.kos.admin.AdminTenantStatusReadOnly;
 import com.kos.admin.AdminTenantStatusReadOnlyRepository;
 import com.kos.authentication.JwtUtil;
+import com.kos.authentication.PasswordUtil.PasswordHelper;
 import com.kos.dto.AuthResponse;
 import com.kos.dto.AuthUser;
 import com.kos.dto.LoginRequest;
@@ -56,6 +57,9 @@ public class AuthController {
     @Autowired
     AdminTenantStatusReadOnlyRepository adminTenantStatusRepo;
 
+    @Autowired
+    PasswordHelper passwordHelper;
+
     /**
      * Returns a 403 ResponseEntity if the user's tenant is suspended in the
      * admin panel; null otherwise. Owners and staff alike are blocked when
@@ -89,8 +93,13 @@ public class AuthController {
             if (request != null) {
                 AuthUser user = userService.getUser(request.getUsername());
                 AuthUser authUser = userService.getUserRoles(request.getUsername());
-                if (user.getUsername() != null && request.getPassword().equals(user.getPassword())
+                if (user.getUsername() != null
+                        && passwordHelper.matches(request.getPassword(), user.getPassword())
                         && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
+
+                    if (!passwordHelper.isBcrypt(user.getPassword())) {
+                        userService.rehashPassword(user, request.getPassword());
+                    }
 
                     // Admin-panel suspension check (applies to owner + staff).
                     ResponseEntity<?> suspended = tenantSuspensionResponseOrNull(user.getRestaurantId());
@@ -409,7 +418,7 @@ public class AuthController {
                 return ResponseEntity.ok(new MessageResponse("failure", false));
             }
             AuthUser user = optUser.get();
-            user.setPassword(request.getNewPassword());
+            user.setPassword(passwordHelper.encode(request.getNewPassword()));
             boolean updated = userService.updatePassword(user);
             logger.info("Exiting forgotPassword()");
             return ResponseEntity.ok(new MessageResponse(updated ? "success" : "failure", updated));
