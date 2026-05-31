@@ -170,6 +170,7 @@ public class AuthController {
                     response.put("subscriptionPlan", user.getSubscriptionPlan());
                     response.put("restaurantId", user.getRestaurantId());
                     response.put("restaurantName", user.getRestaurantName());
+                    response.put("language", user.getLanguage());
                     logger.info("Exiting getUser()");
                     return ResponseEntity.ok(response);
                 }
