@@ -21,6 +21,8 @@ public class ProfileService {
 
     private static final Pattern MOBILE_RE = Pattern.compile("^\\+?[1-9]\\d{9,14}$");
     private static final Pattern EMAIL_RE  = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+    private static final java.util.Set<String> ALLOWED_LANGUAGES =
+        java.util.Set.of("en","hi","mr","ta","te","kn","ml","bn","gu","pa","or");
 
     private final UserRepository users;
     private final RestaurentRepository restaurants;
@@ -56,6 +58,25 @@ public class ProfileService {
                 out.setReceiptFooter(r.getReceiptFooter());
                 out.setAutoPrintReceipt(r.getAutoPrintReceipt());
                 out.setShowGstinOnReceipt(r.getShowGstinOnReceipt());
+                // POS
+                out.setKotEnabled(r.getKotEnabled());
+                out.setKotAutoPrint(r.getKotAutoPrint());
+                out.setKotPrinter(r.getKotPrinter());
+                out.setOrderSoundAlert(r.getOrderSoundAlert());
+                out.setTotalTables(r.getTotalTables());
+                out.setTableReservations(r.getTableReservations());
+                out.setMultiKotRounds(r.getMultiKotRounds());
+                out.setDeliveryEnabled(r.getDeliveryEnabled());
+                out.setTakeawayEnabled(r.getTakeawayEnabled());
+                // Display
+                out.setLanguage(r.getLanguage());
+                out.setCurrencyCode(r.getCurrencyCode());
+                out.setDateFormat(r.getDateFormat());
+                out.setTimeFormat(r.getTimeFormat());
+                out.setNotifyLowStock(r.getNotifyLowStock());
+                out.setLowStockThreshold(r.getLowStockThreshold());
+                out.setNotifyNewOrder(r.getNotifyNewOrder());
+                out.setBrowserNotifications(r.getBrowserNotifications());
             });
         }
         return out;
@@ -140,6 +161,27 @@ public class ProfileService {
         if (req.getAutoPrintReceipt() != null)   r.setAutoPrintReceipt(req.getAutoPrintReceipt());
         if (req.getShowGstinOnReceipt() != null) r.setShowGstinOnReceipt(req.getShowGstinOnReceipt());
 
+        // ── POS (always overwritable) ──
+        if (req.getKotEnabled()       != null) r.setKotEnabled(req.getKotEnabled());
+        if (req.getKotAutoPrint()     != null) r.setKotAutoPrint(req.getKotAutoPrint());
+        if (req.getKotPrinter()       != null) r.setKotPrinter(req.getKotPrinter().trim());
+        if (req.getOrderSoundAlert()  != null) r.setOrderSoundAlert(req.getOrderSoundAlert());
+        if (req.getTotalTables()      != null) r.setTotalTables(clampInt(req.getTotalTables(), 1, 500));
+        if (req.getTableReservations()!= null) r.setTableReservations(req.getTableReservations());
+        if (req.getMultiKotRounds()   != null) r.setMultiKotRounds(req.getMultiKotRounds());
+        if (req.getDeliveryEnabled()  != null) r.setDeliveryEnabled(req.getDeliveryEnabled());
+        if (req.getTakeawayEnabled()  != null) r.setTakeawayEnabled(req.getTakeawayEnabled());
+
+        // ── Display (always overwritable) ──
+        if (req.getLanguage()             != null) r.setLanguage(req.getLanguage().trim());
+        if (req.getCurrencyCode()         != null) r.setCurrencyCode(req.getCurrencyCode().trim().toUpperCase());
+        if (req.getDateFormat()           != null) r.setDateFormat(req.getDateFormat().trim());
+        if (req.getTimeFormat()           != null) r.setTimeFormat(req.getTimeFormat().trim());
+        if (req.getNotifyLowStock()       != null) r.setNotifyLowStock(req.getNotifyLowStock());
+        if (req.getLowStockThreshold()    != null) r.setLowStockThreshold(clampInt(req.getLowStockThreshold(), 1, 9999));
+        if (req.getNotifyNewOrder()       != null) r.setNotifyNewOrder(req.getNotifyNewOrder());
+        if (req.getBrowserNotifications() != null) r.setBrowserNotifications(req.getBrowserNotifications());
+
         restaurants.save(r);
 
         return getSettings(username);
@@ -155,6 +197,27 @@ public class ProfileService {
     private static Integer parseRestaurantId(String s) {
         if (s == null || s.isBlank()) return null;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
+    }
+
+    private static int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    public String getLanguage(String username) {
+        AuthUser owner = users.findByUsername(username)
+            .orElseThrow(() -> new IllegalStateException("User not found: " + username));
+        return owner.getLanguage();
+    }
+
+    @Transactional
+    public void updateLanguage(String username, String language) {
+        if (language == null || !ALLOWED_LANGUAGES.contains(language)) {
+            throw new IllegalArgumentException("Unsupported language: " + language);
+        }
+        AuthUser owner = users.findByUsername(username)
+            .orElseThrow(() -> new IllegalStateException("User not found: " + username));
+        owner.setLanguage(language);
+        users.save(owner);
     }
 
     public static class VerificationRequiredException extends RuntimeException {

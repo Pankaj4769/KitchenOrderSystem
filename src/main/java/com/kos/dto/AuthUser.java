@@ -45,6 +45,10 @@ public class AuthUser {
     @Formula("(SELECT r.restaurent_name FROM restaurent r WHERE r.restaurent_id = CAST(restaurant_id AS UNSIGNED))")
     private String restaurantName;
 
+    @Column(length = 5)
+    @Nullable
+    private String language;
+
 	public Integer getStaffId() {
 		return staffId;
 	}
@@ -140,6 +144,14 @@ public class AuthUser {
 
 	public void setRestaurantName(String restaurantName) {
 		this.restaurantName = restaurantName;
+	}
+
+	public String getLanguage() {
+		return language;
+	}
+
+	public void setLanguage(String language) {
+		this.language = language;
 	}
 
 	public String getPassword() {

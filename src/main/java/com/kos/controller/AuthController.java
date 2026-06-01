@@ -179,6 +179,7 @@ public class AuthController {
                     response.put("subscriptionPlan", user.getSubscriptionPlan());
                     response.put("restaurantId", user.getRestaurantId());
                     response.put("restaurantName", user.getRestaurantName());
+                    response.put("language", user.getLanguage());
                     logger.info("Exiting getUser()");
                     return ResponseEntity.ok(response);
                 }
@@ -464,6 +465,35 @@ public class AuthController {
         if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         try {
             return ResponseEntity.ok(profileService.updateRestaurant(principal.getName(), req));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new MessageResponse(e.getMessage(), false));
+        }
+    }
+
+    @GetMapping("/profile/language")
+    public ResponseEntity<?> getLanguage(java.security.Principal principal) {
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            String lang = profileService.getLanguage(principal.getName());
+            return ResponseEntity.ok(java.util.Map.of("language", lang != null ? lang : "en"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new MessageResponse(e.getMessage(), false));
+        }
+    }
+
+    @PutMapping("/profile/language")
+    public ResponseEntity<?> updateLanguage(
+            @RequestBody com.kos.dto.LanguageUpdateRequest req,
+            java.security.Principal principal) {
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        try {
+            profileService.updateLanguage(principal.getName(), req.getLanguage());
+            return ResponseEntity.ok(new MessageResponse("Language updated", true));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new MessageResponse(e.getMessage(), false));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new MessageResponse(e.getMessage(), false));
