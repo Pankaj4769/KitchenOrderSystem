@@ -4,7 +4,15 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import io.jsonwebtoken.Claims;
+
+import java.util.Collections;
+import java.util.List;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -16,10 +24,12 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final AuthCookieUtil authCookieUtil;
     private final UrlPathHelper pathHelper = new UrlPathHelper();
 
-    public JwtAuthFilter(JwtUtil jwtUtil) {
+    public JwtAuthFilter(JwtUtil jwtUtil, AuthCookieUtil authCookieUtil) {
         this.jwtUtil = jwtUtil;
+        this.authCookieUtil = authCookieUtil;
         // Strip path-parameter segments (e.g. ;jsessionid=...) before path comparison.
         this.pathHelper.setRemoveSemicolonContent(true);
         this.pathHelper.setUrlDecode(true);
@@ -63,12 +73,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // (forgot-password flow calls it anonymously; settings flow calls it authenticated).
         boolean bestEffortJwt = path.equals("/auth/verifyOtp");
 
-        // Public paths skip JWT entirely. /auth/profile/** is EXCLUDED — those
-        // endpoints carry the JWT and must be validated below. Use startsWith only
-        // on the normalized path; never on the raw URI.
+        // Auth-required /auth/** endpoints — JWT must be present and valid.
+        boolean authRequiredAuthPath =
+                path.startsWith("/auth/profile/")
+                || path.equals("/auth/ssoToken");
+
+        // Public paths skip JWT entirely. Use startsWith only on the normalized
+        // path; never on the raw URI.
         boolean skipFilter =
                 !bestEffortJwt &&
-                !path.startsWith("/auth/profile/") &&
+                !authRequiredAuthPath &&
                 (path.startsWith("/auth/") || path.equals("/order-stream") || path.startsWith("/restaurant-images/"));
 
         if (skipFilter) {
@@ -76,12 +90,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String header = request.getHeader("Authorization");
-        boolean hasBearer = header != null && header.startsWith("Bearer ");
+        // Prefer cookie (httpOnly session) over Authorization header.
+        // The header is kept for non-browser clients (Postman, curl, internal tools).
+        String token = authCookieUtil.extractTokenFromCookie(request);
+        if (token == null) {
+            String header = request.getHeader("Authorization");
+            if (header != null && header.startsWith("Bearer ")) {
+                token = header.substring(7);
+            }
+        }
 
-        if (!hasBearer) {
+        if (token == null) {
             if (bestEffortJwt) {
-                // Anonymous caller permitted for this endpoint — continue without auth.
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -91,11 +111,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = header.substring(7);
-
         if (!jwtUtil.validateToken(token)) {
             if (bestEffortJwt) {
-                // Anonymous-acceptable endpoint with a bad token: ignore the token, continue.
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -105,9 +122,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String username = jwtUtil.extractUsername(token);
+        Claims claims = jwtUtil.extractClaims(token);
+        String username = claims.getSubject();
+        String role = claims.get("role", String.class);
+
+        // Expose tenant + staff identity from the token so controllers don't
+        // have to trust a client-controlled header.
+        Object restaurantId = claims.get("restaurantId");
+        Object staffId = claims.get("staffId");
+        if (restaurantId != null) request.setAttribute("jwt.restaurantId", restaurantId.toString());
+        if (staffId != null)      request.setAttribute("jwt.staffId", staffId.toString());
+
+        List<GrantedAuthority> authorities = role != null
+                ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                : Collections.emptyList();
         UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(username, null, null);
+                new UsernamePasswordAuthenticationToken(username, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         filterChain.doFilter(request, response);

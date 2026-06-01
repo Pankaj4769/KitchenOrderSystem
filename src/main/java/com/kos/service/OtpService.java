@@ -21,10 +21,13 @@ public class OtpService {
 
     private static final long OTP_VALIDITY_SECONDS = 300;          // 5 min
     private static final long VERIFIED_TTL_SECONDS  = 600;          // 10 min
+    private static final int  MAX_VERIFY_ATTEMPTS   = 5;            // burn the OTP after this many wrong tries
 
     private static class OtpEntry {
         final String otp;
         final Instant expiry;
+        final java.util.concurrent.atomic.AtomicInteger failedAttempts =
+                new java.util.concurrent.atomic.AtomicInteger(0);
         OtpEntry(String otp) {
             this.otp    = otp;
             this.expiry = Instant.now().plusSeconds(OTP_VALIDITY_SECONDS);
@@ -87,10 +90,23 @@ public class OtpService {
     public boolean verifyOtp(String identifier, String identifierType, String otp) {
         logger.info("Entering verifyOtp()");
         try {
-            OtpEntry entry = store.get(key(identifierType, identifier));
-            if (entry == null || entry.isExpired())          return false;
-            if (!entry.otp.equals(otp.trim()))               return false;
-            store.remove(key(identifierType, identifier));   // consume
+            String storeKey = key(identifierType, identifier);
+            OtpEntry entry = store.get(storeKey);
+            if (entry == null || entry.isExpired()) {
+                if (entry != null) store.remove(storeKey);
+                return false;
+            }
+            if (!entry.otp.equals(otp == null ? "" : otp.trim())) {
+                // Lock out brute force: invalidate the OTP after too many wrong attempts.
+                // User must request a fresh OTP to continue.
+                int tries = entry.failedAttempts.incrementAndGet();
+                if (tries >= MAX_VERIFY_ATTEMPTS) {
+                    logger.warn("OTP for {} invalidated after {} failed attempts", storeKey, tries);
+                    store.remove(storeKey);
+                }
+                return false;
+            }
+            store.remove(storeKey);   // consume on success
             return true;
         } finally {
             logger.info("Exiting verifyOtp()");
