@@ -8,7 +8,9 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,8 +22,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.kos.admin.AdminTenantStatusReadOnly;
 import com.kos.admin.AdminTenantStatusReadOnlyRepository;
+import com.kos.authentication.AuthCookieUtil;
 import com.kos.authentication.JwtUtil;
 import com.kos.authentication.PasswordUtil.PasswordHelper;
+import com.kos.authentication.RefreshTokenStore;
+
+import io.jsonwebtoken.Claims;
 import com.kos.dto.AuthResponse;
 import com.kos.dto.AuthUser;
 import com.kos.dto.LoginRequest;
@@ -60,6 +66,38 @@ public class AuthController {
     @Autowired
     PasswordHelper passwordHelper;
 
+    @Autowired
+    AuthCookieUtil authCookieUtil;
+
+    @Autowired
+    RefreshTokenStore refreshTokenStore;
+
+    private ResponseCookie sessionCookie(String token) {
+        return authCookieUtil.buildSessionCookie(token, JwtUtil.ACCESS_TTL_MS / 1000);
+    }
+
+    private ResponseCookie refreshCookie(String token) {
+        return authCookieUtil.buildRefreshCookie(token, JwtUtil.REFRESH_TTL_MS / 1000);
+    }
+
+    private String mintTokenFor(AuthUser user) {
+        return jwtUtil.generateToken(
+                user.getUsername(),
+                user.getRole() != null ? user.getRole().name() : null,
+                user.getRestaurantId(),
+                user.getStaffId() != null ? user.getStaffId().toString() : null);
+    }
+
+    /**
+     * Mints a refresh token, registers its JTI in the store so it can later
+     * be revoked, and returns the encoded JWT ready to be put in a cookie.
+     */
+    private String mintRefreshTokenFor(AuthUser user) {
+        String jti = java.util.UUID.randomUUID().toString();
+        refreshTokenStore.register(jti, user.getUsername(), JwtUtil.REFRESH_TTL_MS);
+        return jwtUtil.generateRefreshToken(user.getUsername(), jti);
+    }
+
     /**
      * Returns a 403 ResponseEntity if the user's tenant is suspended in the
      * admin panel; null otherwise. Owners and staff alike are blocked when
@@ -91,14 +129,28 @@ public class AuthController {
         logger.info("Entering login()");
         try {
             if (request != null) {
-                AuthUser user = userService.getUser(request.getUsername());
-                AuthUser authUser = userService.getUserRoles(request.getUsername());
-                if (user.getUsername() != null
-                        && passwordHelper.matches(request.getPassword(), user.getPassword())
-                        && request.getRole().equalsIgnoreCase(authUser.getRole().toString())) {
+                // Normalise to SHA-256 hex regardless of whether the client
+                // sent a hash (encryption=on) or plaintext (encryption=off).
+                // A null canonical means malformed payload when encryption=on;
+                // route through the same 401 path (no enumeration). Burn cycles
+                // so timing matches a real BCrypt compare.
+                String canonical = passwordHelper.canonicalize(request.getPassword());
+
+                AuthUser user = canonical != null
+                        ? userService.getUser(request.getUsername())
+                        : new AuthUser();
+                if (canonical == null || user.getUsername() == null) {
+                    passwordHelper.burnCycles(canonical != null ? canonical : "");
+                }
+                if (canonical != null
+                        && user.getUsername() != null
+                        && passwordHelper.matches(canonical, user.getPassword())
+                        && user.getRole() != null
+                        && request.getRole() != null
+                        && request.getRole().equalsIgnoreCase(user.getRole().toString())) {
 
                     if (!passwordHelper.isBcrypt(user.getPassword())) {
-                        userService.rehashPassword(user, request.getPassword());
+                        userService.rehashPassword(user, canonical);
                     }
 
                     // Admin-panel suspension check (applies to owner + staff).
@@ -109,7 +161,7 @@ public class AuthController {
                     }
 
                     // Staff-only restriction: owner must have completed setup
-                    com.kos.dto.UserRole role = authUser.getRole();
+                    com.kos.dto.UserRole role = user.getRole();
                     if (role != com.kos.dto.UserRole.OWNER) {
                         String restaurantId = user.getRestaurantId();
                         if (restaurantId == null || restaurantId.isBlank()) {
@@ -128,9 +180,16 @@ public class AuthController {
                         }
                     }
 
-                    String token = jwtUtil.generateToken(request.getUsername());
                     logger.info("Exiting login()");
-                    return ResponseEntity.ok(new AuthResponse(token));
+                    // Body still contains the access token for backwards-compat
+                    // with non-browser callers; browser clients ignore it and
+                    // rely on the httpOnly cookie set in the response headers.
+                    String access = mintTokenFor(user);
+                    String refresh = mintRefreshTokenFor(user);
+                    return ResponseEntity.ok()
+                            .header(HttpHeaders.SET_COOKIE, sessionCookie(access).toString())
+                            .header(HttpHeaders.SET_COOKIE, refreshCookie(refresh).toString())
+                            .body(new AuthResponse(access));
                 }
             }
             logger.info("Exiting login()");
@@ -145,7 +204,12 @@ public class AuthController {
     public ResponseEntity<?> resetTempPassword(@RequestBody ResetTempPasswordRequest request) {
         logger.info("Entering resetTempPassword()");
         try {
-            ResponseEntity<?> result = userService.resetTempPassword(request.getUsername(), request.getNewPassword())
+            String canonical = passwordHelper.canonicalize(request.getNewPassword());
+            if (canonical == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new MessageResponse("Malformed password payload", false));
+            }
+            ResponseEntity<?> result = userService.resetTempPassword(request.getUsername(), canonical)
                     .<ResponseEntity<?>>map(ResponseEntity::ok)
                     .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                             .body(new MessageResponse("User not found", false)));
@@ -250,6 +314,14 @@ public class AuthController {
     public ResponseEntity<SignUpResponse> signUp(@RequestBody SignupForm form) {
         logger.info("Entering signUp()");
         try {
+            String canonical = passwordHelper.canonicalize(form.getPassword());
+            if (canonical == null) {
+                SignUpResponse rejected = new SignUpResponse();
+                rejected.setMessage("Malformed password payload");
+                rejected.setStatus(false);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(rejected);
+            }
+            form.setPassword(canonical);
             ResponseEntity<SignUpResponse> result = ResponseEntity.ok(userService.saveUser(form));
             logger.info("Exiting signUp()");
             return result;
@@ -288,6 +360,102 @@ public class AuthController {
             logger.error("Error in resendTempPassword(): {}", e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * Clears both auth cookies and revokes the refresh token's JTI server-side
+     * so a stolen copy of it can't be used to mint new access tokens.
+     * Idempotent — safe to call when not logged in.
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<MessageResponse> logout(jakarta.servlet.http.HttpServletRequest request) {
+        String refresh = authCookieUtil.extractRefreshTokenFromCookie(request);
+        if (refresh != null && jwtUtil.validateToken(refresh)) {
+            try {
+                Claims c = jwtUtil.extractClaims(refresh);
+                if (c.getId() != null) {
+                    refreshTokenStore.revoke(c.getId());
+                }
+            } catch (Exception ignored) {
+                // Bad refresh cookie — nothing to revoke, still clear the cookies.
+            }
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, authCookieUtil.buildClearCookie().toString())
+                .header(HttpHeaders.SET_COOKIE, authCookieUtil.buildClearRefreshCookie().toString())
+                .body(new MessageResponse("Logged out", true));
+    }
+
+    /**
+     * Mints a fresh access token using the refresh-token cookie. Rotates the
+     * refresh token on every use — the old JTI is revoked and a new one issued
+     * — so that a stolen refresh token gets invalidated as soon as the
+     * legitimate user next refreshes.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(jakarta.servlet.http.HttpServletRequest request) {
+        String refresh = authCookieUtil.extractRefreshTokenFromCookie(request);
+        if (refresh == null || !jwtUtil.validateToken(refresh)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Claims claims;
+        try {
+            claims = jwtUtil.extractClaims(refresh);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!"refresh".equals(claims.get("purpose", String.class))) {
+            // Refuse access tokens used in place of refresh tokens.
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String username = claims.getSubject();
+        String oldJti  = claims.getId();
+        if (username == null || oldJti == null || !refreshTokenStore.isValid(oldJti, username)) {
+            // Either the token was already revoked (logout, rotation) or never
+            // registered. Could indicate a stolen-token replay attempt — wipe
+            // any other refresh tokens for this user as a precaution.
+            if (username != null) refreshTokenStore.revokeAllForUser(username);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        AuthUser user = userService.getUser(username);
+        if (user == null || user.getUsername() == null) {
+            refreshTokenStore.revoke(oldJti);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        // Rotate: revoke the JTI we just used, mint a fresh one.
+        refreshTokenStore.revoke(oldJti);
+        String newAccess  = mintTokenFor(user);
+        String newRefresh = mintRefreshTokenFor(user);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, sessionCookie(newAccess).toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie(newRefresh).toString())
+                .body(new AuthResponse(newAccess));
+    }
+
+    /**
+     * Mints a short-lived (60s) token for cross-app SSO handoff. The caller
+     * (authenticated via session cookie) gets back a single-use token they can
+     * embed in a URL parameter when opening an external app like the
+     * employee-management portal.
+     */
+    @PostMapping("/ssoToken")
+    public ResponseEntity<?> ssoToken(java.security.Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        AuthUser user = userService.getUser(principal.getName());
+        if (user == null || user.getUsername() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String token = jwtUtil.generateSsoToken(
+                user.getUsername(),
+                user.getRole() != null ? user.getRole().name() : null,
+                user.getRestaurantId(),
+                user.getStaffId().toString());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("token", token);
+        body.put("expiresInSeconds", JwtUtil.SSO_TTL_MS / 1000);
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping("/loginWithOtp")
@@ -329,10 +497,14 @@ public class AuthController {
                 }
             }
 
-            String token = jwtUtil.generateToken(user.getUsername());
-            user.setToken(token);
+            String access = mintTokenFor(user);
+            String refresh = mintRefreshTokenFor(user);
+            user.setToken(access);
             logger.info("Exiting loginWithOtp()");
-            return ResponseEntity.ok(user);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, sessionCookie(access).toString())
+                    .header(HttpHeaders.SET_COOKIE, refreshCookie(refresh).toString())
+                    .body(user);
         } catch (RuntimeException e) {
             logger.error("Error in loginWithOtp(): {}", e.getMessage(), e);
             throw e;
@@ -358,10 +530,14 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
-            String   token = jwtUtil.generateToken(user.getUsername());
-            user.setToken(token);
+            String access = mintTokenFor(user);
+            String refresh = mintRefreshTokenFor(user);
+            user.setToken(access);
             logger.info("Exiting googleLogin()");
-            return ResponseEntity.ok(user);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, sessionCookie(access).toString())
+                    .header(HttpHeaders.SET_COOKIE, refreshCookie(refresh).toString())
+                    .body(user);
         } catch (Exception e) {
             logger.error("Error in googleLogin(): {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -412,13 +588,18 @@ public class AuthController {
     public ResponseEntity<MessageResponse> forgotPassword(@RequestBody UpdatePasswordRequest request) {
         logger.info("Entering forgotPassword()");
         try {
+            String canonical = passwordHelper.canonicalize(request.getNewPassword());
+            if (canonical == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new MessageResponse("Malformed password payload", false));
+            }
             Optional<AuthUser> optUser = userService.getUserByIdentifier(request.getIdentifier(), request.getIdentifierType());
             if (optUser.isEmpty()) {
                 logger.info("Exiting forgotPassword()");
                 return ResponseEntity.ok(new MessageResponse("failure", false));
             }
             AuthUser user = optUser.get();
-            user.setPassword(passwordHelper.encode(request.getNewPassword()));
+            user.setPassword(passwordHelper.encode(canonical));
             boolean updated = userService.updatePassword(user);
             logger.info("Exiting forgotPassword()");
             return ResponseEntity.ok(new MessageResponse(updated ? "success" : "failure", updated));
